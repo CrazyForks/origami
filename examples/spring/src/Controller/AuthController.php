@@ -11,6 +11,7 @@ use Net\Annotation\Middleware;
 use Net\Http\Request;
 use Net\Http\Response;
 use Spring\DTO\Request\LoginRequest;
+use Spring\DTO\Request\RegisterRequest;
 use Spring\Service\AuthService;
 use Spring\Middleware\LogInterceptor;
 
@@ -41,15 +42,12 @@ class AuthController {
 
     #[Operation(summary: "用户注册", description: "用户注册并返回用户信息", tags: ["auth"])]
     #[PostMapping(path: "/auth/register")]
-    public function register(Request $request, Response $response): void {
-        $body = $request->body();
-
-        if (!isset($body['username']) || !isset($body['password']) || !isset($body['email'])) {
-            $response->error('缺少必要参数：username, password, email', 400);
-            return;
-        }
-
-        $result = $this->authService->register($body);
+    public function register(RegisterRequest $request, Response $response): void {
+        $result = $this->authService->register([
+            'username' => $request->username,
+            'password' => $request->password,
+            'email' => $request->email,
+        ]);
 
         if (!$result['success']) {
             $response->error($result['message'], 400);

@@ -81,6 +81,7 @@ type ParamBinding struct {
 | `string` / `int` / `float` / `bool` | 路由含 `{形参名}` | `SourcePath` | `Request::pathValue(key)` |
 | `string` / `int` / `float` / `bool` | 路由不含同名路径变量 | `SourceQuery` | `Request::input(key)` → `?key=` |
 | 其他 class（DTO） | — | `SourceDTO` | `Request::bind(ClassName)` |
+| `Net\Http\UploadedFile` | — | `SourceFormFile` | multipart 字段（名同形参） |
 | **无类型** | — | — | **扫描期报错** |
 
 路径变量从路由模板解析，例如 `/api/product/{id}` 得到 `id`：
@@ -224,7 +225,43 @@ public function login(LoginRequest $request, Response $response): void {
 }
 ```
 
-### 5. 经典 Request / Response 写法（仍支持）
+### 5. 文件上传（multipart/form-data）
+
+单文件形参（字段名与形参名一致）：
+
+```php
+#[PostMapping(path: "/api/upload/avatar")]
+public function uploadAvatar(
+    #[NotBlank(message: "请上传 avatar 文件")]
+    UploadedFile $avatar,
+    Response $response
+): void {
+    $path = $avatar->store('/tmp/uploads');
+    $response->success(['saved_path' => $path], '上传成功', 201);
+}
+```
+
+`curl -F "avatar=@photo.png" http://localhost:8080/api/upload/avatar`
+
+DTO 混合文本字段与文件（`examples/spring` 中的 `UploadFileRequest`）：
+
+```php
+class UploadFileRequest {
+    #[NotBlank]
+    public string $title;
+    #[NotBlank]
+    public UploadedFile $file;
+}
+
+#[PostMapping(path: "/api/upload")]
+public function upload(UploadFileRequest $request, Response $response): void {
+    $request->file->store($uploadDir);
+}
+```
+
+`UploadedFile` 方法：`originalName()`、`size()`、`mimeType()`、`extension()`、`isValid()`、`getContent()`、`store($directory, $name = null)`。
+
+### 6. 经典 Request / Response 写法（仍支持）
 
 ```php
 #[GetMapping(path: "/api/hello")]
@@ -300,5 +337,7 @@ public function hello(Request $request, Response $response): void {
 | `/user/{id}` | `int $id` | Path |
 | 多个查询字段 | `MyQuery $query`（DTO） | Query → bind |
 | POST JSON | `LoginRequest $dto`（DTO） | Body → bind |
+| 上传文件 | `UploadedFile $avatar` | multipart 字段 `avatar` |
+| 文本 + 文件 | `UploadFileRequest $dto` | multipart → bind |
 | 简单字段校验 | 形参上 `#[NotBlank]` 等 | ValidateConstraints |
 | 多字段校验 | DTO 属性上 `#[Size]` 等 | ValidateObject |

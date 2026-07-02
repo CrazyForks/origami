@@ -9,8 +9,10 @@ use Net\Annotation\PostMapping;
 use Net\Annotation\PutMapping;
 use Net\Annotation\DeleteMapping;
 use Net\Annotation\Middleware;
-use Net\Http\Request;
 use Net\Http\Response;
+use Spring\DTO\Request\CreateProductRequest;
+use Spring\DTO\Request\SearchProductsQuery;
+use Spring\DTO\Request\UpdateProductRequest;
 use Spring\Service\ProductService;
 use Spring\Middleware\AuthInterceptor;
 use Spring\Middleware\LogInterceptor;
@@ -26,7 +28,7 @@ class ProductController {
     ) {}
 
     #[GetMapping(path: "/products")]
-    public function listProducts(Request $request, Response $response): void {
+    public function listProducts(Response $response): void {
         $products = $this->productService->findAll();
 
         $response->success([
@@ -36,8 +38,7 @@ class ProductController {
     }
 
     #[GetMapping(path: "/product/{id}")]
-    public function getProduct(Request $request, Response $response): void {
-        $id = (int)$request->pathValue('id');
+    public function getProduct(int $id, Response $response): void {
         $product = $this->productService->findById($id);
 
         if (!$product) {
@@ -49,25 +50,20 @@ class ProductController {
     }
 
     #[PostMapping(path: "/products")]
-    public function createProduct(Request $request, Response $response): void {
-        $body = $request->body();
-
-        if (!isset($body['name']) || !isset($body['price'])) {
-            $response->error('缺少必要参数：name 和 price', 400);
-            return;
-        }
-
-        $product = $this->productService->create($body);
+    public function createProduct(CreateProductRequest $request, Response $response): void {
+        $product = $this->productService->create([
+            'name' => $request->name,
+            'price' => $request->price,
+            'category' => $request->category,
+            'description' => $request->description,
+        ]);
 
         $response->success($product, 'created', 201);
     }
 
     #[PutMapping(path: "/product/{id}")]
-    public function updateProduct(Request $request, Response $response): void {
-        $id = (int)$request->pathValue('id');
-        $body = $request->body();
-
-        $product = $this->productService->update($id, $body);
+    public function updateProduct(int $id, UpdateProductRequest $request, Response $response): void {
+        $product = $this->productService->update($id, $request->toUpdateArray());
 
         if (!$product) {
             $response->error('商品不存在', 404);
@@ -78,8 +74,7 @@ class ProductController {
     }
 
     #[DeleteMapping(path: "/product/{id}")]
-    public function deleteProduct(Request $request, Response $response): void {
-        $id = (int)$request->pathValue('id');
+    public function deleteProduct(int $id, Response $response): void {
         $result = $this->productService->delete($id);
 
         if (!$result) {
@@ -91,11 +86,8 @@ class ProductController {
     }
 
     #[GetMapping(path: "/products/search")]
-    public function searchProducts(Request $request, Response $response): void {
-        $keyword = $request->input('keyword') ?? '';
-        $category = $request->input('category') ?? '';
-
-        $products = $this->productService->search($keyword, $category);
+    public function searchProducts(SearchProductsQuery $query, Response $response): void {
+        $products = $this->productService->search($query->keyword, $query->category);
 
         $response->success([
             'list' => $products,

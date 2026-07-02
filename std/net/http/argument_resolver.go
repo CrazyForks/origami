@@ -63,6 +63,15 @@ func resolveHandlerArgs(
 				return nil, acl
 			}
 			args[binding.Index] = val
+		case netdata.SourceFormFile:
+			val, acl := resolveFormFileParam(vm, ctx, reqProxy, resProxy, binding)
+			if acl != nil {
+				return nil, acl
+			}
+			if val == nil {
+				return nil, nil
+			}
+			args[binding.Index] = val
 		default:
 			return nil, utils.NewThrowf("无法解析控制器参数 %q", binding.Name)
 		}
@@ -200,6 +209,34 @@ func resolveQueryParam(reqProxy data.Value, binding netdata.ParamBinding) (data.
 		return data.NewNullValue(), nil
 	}
 	return resolveScalarValue(rawStr, binding, "查询")
+}
+
+func resolveFormFileParam(
+	vm data.VM,
+	ctx data.Context,
+	reqProxy data.Value,
+	resProxy data.Value,
+	binding netdata.ParamBinding,
+) (data.Value, data.Control) {
+	_ = vm
+	r := requestFromProxy(reqProxy)
+	header, err := uploadedFileFromForm(r, binding.FileKey)
+	if err != nil || header == nil {
+		if binding.Nullable {
+			return data.NewNullValue(), nil
+		}
+		if binding.Validate && len(binding.Constraints) > 0 {
+			if done, acl := validateScalarBinding(resProxy, binding, data.NewNullValue()); done {
+				return nil, acl
+			}
+		}
+		return newUploadedFileValue(ctx, nil), nil
+	}
+	val := newUploadedFileValue(ctx, header)
+	if done, acl := validateScalarBinding(resProxy, binding, val); done {
+		return nil, acl
+	}
+	return val, nil
 }
 
 // resolveScalarValue 将路径/查询标量绑定为 Value；有约束时空值留给校验层处理。

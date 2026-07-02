@@ -219,3 +219,26 @@ class LoginRequest {
 		t.Fatal("expected Validate=true for DTO with Size constraint")
 	}
 }
+
+func TestAnalyzeHandlerParamsUploadedFile(t *testing.T) {
+	method := node.NewMethod(nil, "uploadAvatar", "public", false,
+		[]data.GetValue{
+			node.NewParameter(nil, "avatar", 0, nil, data.NewBaseType("Net\\Http\\UploadedFile")),
+			node.NewParameter(nil, "response", 1, nil, data.NewBaseType("Net\\Http\\Response")),
+		},
+		nil,
+		[]data.Variable{
+			node.NewVariable(nil, "avatar", 0, nil),
+			node.NewVariable(nil, "response", 1, nil),
+		},
+		data.NewBaseType("void"),
+	)
+
+	spec, acl := netannotation.AnalyzeHandlerParams(method, nil, "/api/upload/avatar")
+	if acl != nil {
+		t.Fatalf("unexpected acl: %v", acl)
+	}
+	if spec.Params[0].Source != netdata.SourceFormFile || spec.Params[0].FileKey != "avatar" {
+		t.Fatalf("uploaded file binding failed: %+v", spec.Params[0])
+	}
+}

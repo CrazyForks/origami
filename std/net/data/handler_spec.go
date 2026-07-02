@@ -11,6 +11,7 @@ const (
 	SourceDTO
 	SourcePath
 	SourceQuery
+	SourceFormFile
 )
 
 // ParamBinding 单形参绑定计划。
@@ -23,6 +24,7 @@ type ParamBinding struct {
 	Validate    bool
 	PathKey     string // SourcePath 时对应路由模板中的 {key}
 	QueryKey    string // SourceQuery 时对应 ?key= 查询参数名
+	FileKey     string // SourceFormFile 时对应 multipart 字段名
 	Nullable    bool
 	Constraints []*data.ClassValue // 形参上的 Validation 约束注解
 }

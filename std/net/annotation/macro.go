@@ -82,6 +82,9 @@ func analyzeParameter(
 		binding.Source = netdata.SourceRequest
 	case "Net\\Http\\Response":
 		binding.Source = netdata.SourceResponse
+	case "Net\\Http\\UploadedFile":
+		binding.Source = netdata.SourceFormFile
+		binding.FileKey = p.Name
 	default:
 		if isScalarTypeFQN(typeFQN) {
 			constraints := validation.ConstraintAnnotations(p.Annotations)

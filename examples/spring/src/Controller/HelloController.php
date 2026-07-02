@@ -6,7 +6,6 @@ use Net\Annotation\Controller;
 use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
 use Net\Annotation\Middleware;
-use Net\Http\Request;
 use Net\Http\Response;
 use Spring\Middleware\LogInterceptor;
 
@@ -17,7 +16,7 @@ class HelloController {
     public int $count = 0;
 
     #[GetMapping(path: "/hello")]
-    public function hello(Request $request, Response $response): void {
+    public function hello(Response $response): void {
         $response->success([
             "greeting" => "Hello World!",
             "app_name" => 'Spring Demo',
@@ -28,7 +27,7 @@ class HelloController {
     }
 
     #[GetMapping(path: "/info")]
-    public function info(Request $request, Response $response): void {
+    public function info(Response $response): void {
         $response->success([
             "name" => 'Spring Demo',
             "version" => '1.0.0',
@@ -39,7 +38,7 @@ class HelloController {
     }
 
     #[GetMapping(path: "/status")]
-    public function status(Request $request, Response $response): void {
+    public function status(Response $response): void {
         $response->success([
             "status" => "running",
             "uptime" => "ok",

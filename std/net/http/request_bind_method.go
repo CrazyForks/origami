@@ -51,6 +51,16 @@ func (h *RequestBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 	serializer := jsonSerializer.NewJsonSerializer()
 	contentType := h.source.Header.Get("Content-Type")
 
+	if strings.Contains(contentType, "multipart/form-data") {
+		if err := ensureMultipartParsed(h.source); err != nil {
+			return nil, utils.NewThrow(err)
+		}
+		if err := bindMultipartToClass(ctx, classValue, h.source); err != nil {
+			return nil, utils.NewThrow(err)
+		}
+		return classValue, nil
+	}
+
 	if strings.Contains(contentType, "application/json") && h.source.Body != nil {
 		body, err := io.ReadAll(h.source.Body)
 		if err == nil && len(body) > 0 {
@@ -104,6 +114,35 @@ func bindFlatMapToClass(classValue *data.ClassValue, flat map[string]string) err
 			return fmt.Errorf("%s: %w", key, err)
 		}
 		classValue.SetProperty(key, val)
+	}
+	return nil
+}
+
+func bindMultipartToClass(ctx data.Context, classValue *data.ClassValue, r *httpsrc.Request) error {
+	if r.MultipartForm != nil && len(r.MultipartForm.Value) > 0 {
+		if err := bindFlatMapToClass(classValue, stringMapFromValues(r.MultipartForm.Value)); err != nil {
+			return err
+		}
+	}
+	for _, prop := range classValue.Class.GetPropertyList() {
+		cp, ok := prop.(*node.ClassProperty)
+		if !ok {
+			continue
+		}
+		typeFQN, nullable := typeFQNFromTypes(cp.Type)
+		if !isUploadedFileTypeFQN(typeFQN) {
+			continue
+		}
+		header, err := uploadedFileFromForm(r, cp.Name)
+		if err != nil || header == nil {
+			if nullable {
+				classValue.SetProperty(cp.Name, data.NewNullValue())
+			} else {
+				classValue.SetProperty(cp.Name, newUploadedFileValue(ctx, nil))
+			}
+			continue
+		}
+		classValue.SetProperty(cp.Name, newUploadedFileValue(ctx, header))
 	}
 	return nil
 }

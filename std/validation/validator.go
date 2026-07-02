@@ -215,6 +215,13 @@ func isBlank(value data.Value) bool {
 	if av, ok := value.(*data.ArrayValue); ok {
 		return len(av.List) == 0
 	}
+	if pv, ok := value.(*data.ProxyValue); ok && pv.Class != nil {
+		if pv.Class.GetName() == "Net\\Http\\UploadedFile" {
+			if getter, ok := pv.Class.(interface{ GetSource() any }); ok {
+				return getter.GetSource() == nil
+			}
+		}
+	}
 	return false
 }
 
