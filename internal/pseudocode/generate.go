@@ -81,27 +81,6 @@ var genericDocRules = map[string]GenericClassDocRule{
 	},
 }
 
-// repeatableAnnotationClasses 声明可重复使用的注解类。
-// 键为完整类名（如 Net\Annotation\Middleware）或短类名（如 Middleware，仅 annotation 命名空间）。
-var repeatableAnnotationClasses = map[string]struct{}{}
-
-// annotationTargetByClass 为未在 GetImplements 中声明 TypeTarget* 的注解类提供 TARGET_* 回退配置。
-var annotationTargetByClass = map[string][]string{
-	"Net\\Annotation\\Middleware":          {"TARGET_CLASS"},
-	"Net\\Annotation\\Controller":          {"TARGET_CLASS"},
-	"Net\\Annotation\\Route":               {"TARGET_CLASS"},
-	"Net\\Annotation\\Application":         {"TARGET_FUNCTION"},
-	"Net\\Annotation\\GetMapping":          {"TARGET_METHOD"},
-	"Net\\Annotation\\PostMapping":         {"TARGET_METHOD"},
-	"Net\\Annotation\\PutMapping":          {"TARGET_METHOD"},
-	"Net\\Annotation\\DeleteMapping":       {"TARGET_METHOD"},
-	"Annotation\\Inject":                   {"TARGET_PARAMETER", "TARGET_PROPERTY"},
-	"Database\\Annotation\\Table":          {"TARGET_CLASS"},
-	"Database\\Annotation\\Column":         {"TARGET_PROPERTY"},
-	"Database\\Annotation\\Id":             {"TARGET_PROPERTY"},
-	"Database\\Annotation\\GeneratedValue": {"TARGET_PROPERTY"},
-}
-
 var targetMarkerToFlag = map[string]string{
 	node.TypeTargetClass:     "TARGET_CLASS",
 	node.TypeTargetMethod:    "TARGET_METHOD",
@@ -414,7 +393,7 @@ func analyzeClass(ctx data.Context, class data.ClassStmt) ClassSignature {
 	namespace := classNamespace(className)
 	forAnnotation := isAnnotationNamespace(className)
 	if forAnnotation {
-		sig.AttributeFlags = buildAttributeFlags(class, className, namespace, shortClassName)
+		sig.AttributeFlags = buildAttributeFlags(class)
 	}
 	classRule, hasClassRule := genericDocRuleForClass(namespace, shortClassName)
 
@@ -800,25 +779,15 @@ func formatDefaultValue(v data.GetValue) string {
 	}
 }
 
-func isAnnotationNamespace(namespace string) bool {
-	if namespace == "" {
+func isAnnotationNamespace(name string) bool {
+	if name == "" {
 		return false
 	}
-	return strings.Contains(strings.ToLower(strings.ReplaceAll(namespace, "\\", "/")), "annotation")
+	normalized := strings.ToLower(strings.ReplaceAll(name, "\\", "/"))
+	return strings.Contains(normalized, "annotation")
 }
 
-func isRepeatableAnnotation(class data.ClassStmt, className, namespace, shortClassName string) bool {
-	if _, ok := repeatableAnnotationClasses[className]; ok {
-		return true
-	}
-	if namespace != "" {
-		if _, ok := repeatableAnnotationClasses[namespace+`\`+shortClassName]; ok {
-			return true
-		}
-	}
-	if _, ok := repeatableAnnotationClasses[shortClassName]; ok {
-		return true
-	}
+func isRepeatableAnnotation(class data.ClassStmt) bool {
 	for _, impl := range class.GetImplements() {
 		if impl == node.TypeRepeatable {
 			return true
@@ -827,48 +796,26 @@ func isRepeatableAnnotation(class data.ClassStmt, className, namespace, shortCla
 	return false
 }
 
-func resolveAnnotationTargetFlags(class data.ClassStmt, className, namespace, shortClassName string) []string {
+func resolveAnnotationTargetFlags(class data.ClassStmt) []string {
 	var flags []string
 	seen := make(map[string]bool)
-	add := func(flag string) {
-		if flag == "" || seen[flag] {
-			return
-		}
-		seen[flag] = true
-		flags = append(flags, flag)
-	}
-
 	for _, impl := range class.GetImplements() {
 		if flag, ok := targetMarkerToFlag[impl]; ok {
-			add(flag)
-		}
-	}
-
-	if len(flags) == 0 {
-		keys := []string{className}
-		if namespace != "" {
-			keys = append(keys, namespace+`\`+shortClassName)
-		}
-		keys = append(keys, shortClassName)
-		for _, key := range keys {
-			if targets, ok := annotationTargetByClass[key]; ok {
-				for _, target := range targets {
-					add(target)
-				}
-				break
+			if !seen[flag] {
+				seen[flag] = true
+				flags = append(flags, flag)
 			}
 		}
 	}
-
 	return flags
 }
 
-func buildAttributeFlags(class data.ClassStmt, className, namespace, shortClassName string) string {
+func buildAttributeFlags(class data.ClassStmt) string {
 	var parts []string
-	for _, flag := range resolveAnnotationTargetFlags(class, className, namespace, shortClassName) {
+	for _, flag := range resolveAnnotationTargetFlags(class) {
 		parts = append(parts, `\Attribute::`+flag)
 	}
-	if isRepeatableAnnotation(class, className, namespace, shortClassName) {
+	if isRepeatableAnnotation(class) {
 		parts = append(parts, `\Attribute::IS_REPEATABLE`)
 	}
 	return strings.Join(parts, " | ")

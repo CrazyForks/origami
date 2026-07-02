@@ -6,11 +6,12 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	"github.com/php-any/origami/std/net/annotation"
+	netdata "github.com/php-any/origami/std/net/data"
 )
 
 func Load(vm data.VM) {
 	annotation.OnApplicationScanStart = onApplicationScanStart
-	annotation.ControllerInstantiator = instantiateController
+	netdata.ControllerInstantiator = instantiateController
 
 	vm.AddClass(NewContainerClass())
 	vm.AddClass(NewServiceProviderClass())

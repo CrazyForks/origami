@@ -3,6 +3,7 @@ package annotation
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	netdata "github.com/php-any/origami/std/net/data"
 )
 
 // PutMappingClass PutMapping注解类
@@ -27,7 +28,7 @@ func (p *PutMappingClass) GetExtend() *string {
 }
 
 func (p *PutMappingClass) GetImplements() []string {
-	return []string{node.TypeFeature, node.TypeTargetMethod}
+	return []string{node.TypeFeature, node.TypeTargetMethod, node.TypeMacro}
 }
 
 func (p *PutMappingClass) GetProperty(_ string) (data.Property, bool) {
@@ -58,6 +59,11 @@ func (p *PutMappingClass) Path() string {
 		return p.source.path
 	}
 	return ""
+}
+
+// Expand 宏展开：分析目标方法的 HandlerSpec。
+func (p *PutMappingClass) Expand(target data.Method, ctx data.Context, routePath string) (data.Method, netdata.HandlerSpec, data.Control) {
+	return ExpandHTTPHandlerMethod(target, ctx, routePath)
 }
 
 // PutMapping 映射实例

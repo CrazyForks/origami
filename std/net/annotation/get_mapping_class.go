@@ -3,6 +3,7 @@ package annotation
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	netdata "github.com/php-any/origami/std/net/data"
 )
 
 // GetMappingClass GetMapping注解类
@@ -27,7 +28,7 @@ func (g *GetMappingClass) GetExtend() *string {
 }
 
 func (g *GetMappingClass) GetImplements() []string {
-	return []string{node.TypeFeature, node.TypeTargetMethod}
+	return []string{node.TypeFeature, node.TypeTargetMethod, node.TypeMacro}
 }
 
 func (g *GetMappingClass) GetProperty(_ string) (data.Property, bool) {
@@ -58,6 +59,11 @@ func (g *GetMappingClass) Path() string {
 		return g.source.path
 	}
 	return ""
+}
+
+// Expand 宏展开：分析目标方法的 HandlerSpec。
+func (g *GetMappingClass) Expand(target data.Method, ctx data.Context, routePath string) (data.Method, netdata.HandlerSpec, data.Control) {
+	return ExpandHTTPHandlerMethod(target, ctx, routePath)
 }
 
 // GetMapping 映射实例

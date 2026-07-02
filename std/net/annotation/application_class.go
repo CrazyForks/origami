@@ -10,6 +10,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	netdata "github.com/php-any/origami/std/net/data"
 )
 
 // ApplicationClass 应用入口注解（类似 Spring Boot 应用入口）
@@ -269,5 +270,5 @@ func (m *ApplicationConstructMethod) Scan(ctx data.Context) data.Control {
 		}
 	}
 
-	return RegisterPendingRoutes(vm)
+	return netdata.RegisterPendingRoutes()
 }

@@ -48,6 +48,20 @@ func CompiledDeleteMappingValue(path string) *data.ClassValue {
 	return &data.ClassValue{ObjectValue: data.NewObjectValue(), Class: dc}
 }
 
+// CompiledOperationValue 构建预编译的 @Operation 注解实例
+func CompiledOperationValue(summary, description, operationID string, tags []string, deprecated, hidden bool) *data.ClassValue {
+	o := &Operation{
+		summary:     summary,
+		description: description,
+		tags:        append([]string(nil), tags...),
+		operationId: operationID,
+		deprecated:  deprecated,
+		hidden:      hidden,
+	}
+	oc := &OperationClass{source: o, construct: &OperationConstructMethod{operation: o}}
+	return &data.ClassValue{ObjectValue: data.NewObjectValue(), Class: oc}
+}
+
 // CompiledMiddlewareValue 构建预编译的 @Middleware 注解实例
 func CompiledMiddlewareValue(className string) *data.ClassValue {
 	m := &Middleware{className: className}

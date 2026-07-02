@@ -3,6 +3,7 @@ package annotation
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	netdata "github.com/php-any/origami/std/net/data"
 )
 
 // MiddlewareClass @Middleware 注解类 - 特性注解
@@ -151,7 +152,7 @@ func (m *MiddlewareConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 		if anyT, ok := tv.(*data.AnyValue); ok {
 			if cls, ok := anyT.Value.(*node.ClassStatement); ok {
 				// 注册到控制器中间件
-				AddControllerMiddleware(cls.GetName(), m.middleware.className)
+				netdata.AddControllerMiddleware(cls.GetName(), m.middleware.className)
 			}
 		}
 	}

@@ -43,6 +43,10 @@ func (g *Generator) needDatabaseAnnotationImport() {
 	g.needImport("github.com/php-any/origami/std/database/annotation", "dbannotation")
 }
 
+func (g *Generator) needValidationAnnotationImport() {
+	g.needImport("github.com/php-any/origami/std/validation/annotation", "valannotation")
+}
+
 func (g *Generator) needContainerImport() {
 	g.needImport("github.com/php-any/origami/std/container", "container")
 }

@@ -1,8 +1,9 @@
 package http
 
 import (
-	"encoding/json"
+	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	httpsrc "net/http"
@@ -13,7 +14,7 @@ import (
 	"github.com/php-any/origami/utils"
 )
 
-// RequestBindMethod 绑定 JSON 数据到指定类
+// RequestBindMethod 绑定请求数据到指定 DTO 类。
 type RequestBindMethod struct {
 	source *httpsrc.Request
 }
@@ -23,71 +24,133 @@ func (h *RequestBindMethod) Call(ctx data.Context) (data.GetValue, data.Control)
 		return data.NewAnyValue(nil), nil
 	}
 
-	// 获取要绑定的类
 	param0, err := utils.ConvertFromIndex[string](ctx, 0)
 	if err != nil {
 		return nil, utils.NewThrowf("参数转换失败: %v", err)
 	}
 
-	// 获取 VM 来查找类定义
 	vm := ctx.GetVM()
-	if vm != nil {
-		// 根据类名获取类定义
-		if classStmt, acl := vm.GetOrLoadClass(param0); acl == nil {
-			// 创建类实例
-			classInstance, _ := classStmt.GetValue(ctx)
-			if classValue, ok := classInstance.(*data.ClassValue); ok {
-				// 检查内容类型
-				contentType := h.source.Header.Get("Content-Type")
+	if vm == nil {
+		return data.NewObjectValue(), nil
+	}
 
-				if strings.Contains(contentType, "application/json") {
-					// 处理 JSON 请求体，直接使用 UnmarshalClass
-					if h.source.Body != nil {
-						body, err := io.ReadAll(h.source.Body)
-						if err == nil && len(body) > 0 {
-							// 直接使用 JSON 序列化器处理原始 JSON 字节
-							serializer := jsonSerializer.NewJsonSerializer()
-							err = serializer.UnmarshalClass(body, classValue)
-							if err != nil {
-								return nil, utils.NewThrow(err)
-							}
-							return classValue, nil
-						}
-					}
-				} else {
-					// 处理表单数据
-					if h.source.Form != nil {
-						// 将表单数据转换为 JSON 格式
-						formData := make(map[string]interface{})
-						for key, values := range h.source.Form {
-							if len(values) > 0 {
-								formData[key] = values[0]
-							}
-						}
+	classStmt, acl := vm.GetOrLoadClass(param0)
+	if acl != nil {
+		return nil, acl
+	}
 
-						// 将表单数据转换为 JSON 字节
-						jsonBytes, err := json.Marshal(formData)
-						if err != nil {
-							return nil, utils.NewThrow(err)
-						}
+	classInstance, acl := classStmt.GetValue(ctx)
+	if acl != nil {
+		return nil, acl
+	}
+	classValue, ok := classInstance.(*data.ClassValue)
+	if !ok {
+		return data.NewObjectValue(), nil
+	}
 
-						// 使用 JSON 序列化器处理
-						serializer := jsonSerializer.NewJsonSerializer()
-						err = serializer.UnmarshalClass(jsonBytes, classValue)
-						if err != nil {
-							return nil, utils.NewThrow(err)
-						}
-						return classValue, nil
-					}
-				}
+	serializer := jsonSerializer.NewJsonSerializer()
+	contentType := h.source.Header.Get("Content-Type")
+
+	if strings.Contains(contentType, "application/json") && h.source.Body != nil {
+		body, err := io.ReadAll(h.source.Body)
+		if err == nil && len(body) > 0 {
+			if err := serializer.UnmarshalClass(body, classValue); err != nil {
+				return nil, utils.NewThrow(err)
 			}
-		} else {
-			return nil, acl
+			return classValue, nil
 		}
 	}
 
-	// 如果无法创建类实例，返回空对象
-	return data.NewObjectValue(), nil
+	if len(h.source.Form) > 0 {
+		if err := bindFlatMapToClass(classValue, stringMapFromValues(h.source.Form)); err != nil {
+			return nil, utils.NewThrow(err)
+		}
+		return classValue, nil
+	}
+
+	if query := h.source.URL.Query(); len(query) > 0 {
+		if err := bindFlatMapToClass(classValue, stringMapFromValues(query)); err != nil {
+			return nil, utils.NewThrow(err)
+		}
+		return classValue, nil
+	}
+
+	return classValue, nil
+}
+
+func stringMapFromValues(src map[string][]string) map[string]string {
+	out := make(map[string]string, len(src))
+	for key, values := range src {
+		if len(values) > 0 {
+			out[key] = values[0]
+		}
+	}
+	return out
+}
+
+// bindFlatMapToClass 将 query/form 等扁平字符串映射到 DTO 属性（按属性类型转换）。
+func bindFlatMapToClass(classValue *data.ClassValue, flat map[string]string) error {
+	for key, raw := range flat {
+		propStmt, ok := classValue.GetPropertyStmt(key)
+		if !ok {
+			continue
+		}
+		cp, ok := propStmt.(*node.ClassProperty)
+		if !ok {
+			continue
+		}
+		val, err := coerceFlatInput(raw, cp.Type)
+		if err != nil {
+			return fmt.Errorf("%s: %w", key, err)
+		}
+		classValue.SetProperty(key, val)
+	}
+	return nil
+}
+
+func coerceFlatInput(raw string, ty data.Types) (data.Value, error) {
+	if ty == nil {
+		return data.NewStringValue(raw), nil
+	}
+	if nt, ok := ty.(data.NullableType); ok {
+		if strings.TrimSpace(raw) == "" {
+			return data.NewNullValue(), nil
+		}
+		return coerceFlatInput(raw, nt.BaseType)
+	}
+	switch ty.(type) {
+	case data.Int:
+		if strings.TrimSpace(raw) == "" {
+			return data.NewIntValue(0), nil
+		}
+		n, err := strconv.Atoi(strings.TrimSpace(raw))
+		if err != nil {
+			return nil, fmt.Errorf("无法转换为 int: %q", raw)
+		}
+		return data.NewIntValue(n), nil
+	case data.Float:
+		if strings.TrimSpace(raw) == "" {
+			return data.NewFloatValue(0), nil
+		}
+		f, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+		if err != nil {
+			return nil, fmt.Errorf("无法转换为 float: %q", raw)
+		}
+		return data.NewFloatValue(f), nil
+	case data.Bool:
+		if strings.TrimSpace(raw) == "" {
+			return data.NewBoolValue(false), nil
+		}
+		b, err := strconv.ParseBool(strings.TrimSpace(raw))
+		if err != nil {
+			return nil, fmt.Errorf("无法转换为 bool: %q", raw)
+		}
+		return data.NewBoolValue(b), nil
+	case data.String:
+		return data.NewStringValue(raw), nil
+	default:
+		return data.NewStringValue(raw), nil
+	}
 }
 
 func (h *RequestBindMethod) GetName() string            { return "bind" }

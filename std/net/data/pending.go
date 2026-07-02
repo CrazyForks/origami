@@ -1,31 +1,18 @@
-package annotation
+package netdata
 
 import (
 	"github.com/php-any/origami/data"
-	"github.com/php-any/origami/runtime"
+	"github.com/php-any/origami/node"
 )
 
-// PendingRoute 待注册路由
-type PendingRoute struct {
-	Method         string
-	Path           string
-	Target         data.Method
-	Receiver       data.GetValue
-	ControllerName string
-	StaticReceiver data.GetValue
-}
+var (
+	pendingRoutes         []PendingRoute
+	pendingControllers    = make(map[string]pendingController)
+	controllerMiddlewares = make(map[string][]string)
+)
 
-type pendingController struct {
-	ClassStmt data.ClassStmt
-	Ctx       data.Context
-}
-
-var pendingRoutes []PendingRoute
-
-// 扫描阶段收集控制器，全部文件加载后再实例化（保证 DI 依赖已注册）
-var pendingControllers = make(map[string]pendingController)
-
-var controllerMiddlewares = make(map[string][]string)
+// ControllerInstantiator 在路由注册阶段实例化控制器；默认直接 new，不经过容器。
+var ControllerInstantiator = node.InstantiateController
 
 func AddPendingRoute(r PendingRoute) {
 	pendingRoutes = append(pendingRoutes, r)
@@ -51,17 +38,18 @@ func instantiatePendingControllers() (map[string]data.GetValue, data.Control) {
 	return instances, nil
 }
 
-func RegisterPendingRoutes(vm data.VM) data.Control {
+// RegisterPendingRoutes 实例化待注册控制器并将待注册路由写入全局路由表。
+func RegisterPendingRoutes() data.Control {
 	instances, acl := instantiatePendingControllers()
 	if acl != nil {
 		return acl
 	}
 
 	for _, pr := range pendingRoutes {
-		middlewares := []runtime.MiddlewareInfo{}
+		middlewares := []MiddlewareInfo{}
 		if mws, ok := controllerMiddlewares[pr.ControllerName]; ok {
 			for _, className := range mws {
-				middlewares = append(middlewares, runtime.MiddlewareInfo{ClassName: className})
+				middlewares = append(middlewares, MiddlewareInfo{ClassName: className})
 			}
 		}
 
@@ -73,12 +61,14 @@ func RegisterPendingRoutes(vm data.VM) data.Control {
 			receiver = instances[pr.ControllerName]
 		}
 
-		runtime.AppendHTTPRoute(vm, runtime.Route{
+		AppendHTTPRoute(Route{
 			Method:      pr.Method,
 			Path:        pr.Path,
 			Target:      pr.Target,
 			Receiver:    receiver,
 			Middlewares: middlewares,
+			Operation:   pr.Operation,
+			HandlerSpec: pr.HandlerSpec,
 		})
 	}
 

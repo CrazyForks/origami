@@ -5,7 +5,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/runtime"
+	netdata "github.com/php-any/origami/std/net/data"
 	"github.com/php-any/origami/utils"
 )
 
@@ -113,7 +113,7 @@ func (m *ControllerConstructMethod) GetReturnType() data.Types {
 
 func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
 	vm := ctx.GetVM()
-	if !runtime.SupportsHTTPRoutes(vm) {
+	if !netdata.SupportsHTTPRoutes(vm) {
 		return nil, utils.NewThrow(errors.New("@Controller 注解需在引导类 flash 扫描时加载"))
 	}
 	// 读取 name
@@ -172,36 +172,78 @@ func (m *ControllerConstructMethod) Call(ctx data.Context) (data.GetValue, data.
 					return P + path
 				}
 
-				RegisterDeferredController(cls.GetName(), cls, ctx)
+				netdata.RegisterDeferredController(cls.GetName(), cls, ctx)
 				classValue := data.NewClassValue(cls, ctx)
 
-				appendRoute := func(method, path string, target data.Method) {
+				appendRoute := func(method, path string, target data.Method, handlerSpec netdata.HandlerSpec, operation *netdata.OperationInfo) {
 					var staticReceiver data.GetValue
 					if target.GetIsStatic() {
 						staticReceiver = classValue
 					}
-					AddPendingRoute(PendingRoute{
+					netdata.AddPendingRoute(netdata.PendingRoute{
 						Method:         method,
 						Path:           path,
 						Target:         target,
 						ControllerName: cls.GetName(),
 						StaticReceiver: staticReceiver,
+						Operation:      operation,
+						HandlerSpec:    handlerSpec,
 					})
+				}
+
+				resolveHandler := func(target data.Method, mappingClass data.ClassStmt, routePath string) (data.Method, netdata.HandlerSpec, data.Control) {
+					if macro := AsMacroExpander(mappingClass); macro != nil {
+						return macro.Expand(target, ctx, routePath)
+					}
+					return ExpandHTTPHandlerMethod(target, ctx, routePath)
 				}
 
 				// 遍历类方法，读取方法注解并存储到待注册列表
 				for _, method := range cls.GetMethods() {
 					if cm, ok := method.(*node.ClassMethod); ok {
+						var operation *netdata.OperationInfo
+						if oc := FindOperationAnnotation(cm.Annotations); oc != nil {
+							info := oc.Info()
+							operation = &info
+						}
 						for _, ann := range cm.Annotations {
+							var routeACL data.Control
 							switch gc := ann.Class.(type) {
 							case *GetMappingClass:
-								appendRoute("GET", join(prefix, gc.Path()), method)
+								var effective data.Method
+								var spec netdata.HandlerSpec
+								routePath := join(prefix, gc.Path())
+								effective, spec, routeACL = resolveHandler(method, gc, routePath)
+								if routeACL == nil {
+									appendRoute("GET", routePath, effective, spec, operation)
+								}
 							case *PostMappingClass:
-								appendRoute("POST", join(prefix, gc.Path()), method)
+								var effective data.Method
+								var spec netdata.HandlerSpec
+								routePath := join(prefix, gc.Path())
+								effective, spec, routeACL = resolveHandler(method, gc, routePath)
+								if routeACL == nil {
+									appendRoute("POST", routePath, effective, spec, operation)
+								}
 							case *PutMappingClass:
-								appendRoute("PUT", join(prefix, gc.Path()), method)
+								var effective data.Method
+								var spec netdata.HandlerSpec
+								routePath := join(prefix, gc.Path())
+								effective, spec, routeACL = resolveHandler(method, gc, routePath)
+								if routeACL == nil {
+									appendRoute("PUT", routePath, effective, spec, operation)
+								}
 							case *DeleteMappingClass:
-								appendRoute("DELETE", join(prefix, gc.Path()), method)
+								var effective data.Method
+								var spec netdata.HandlerSpec
+								routePath := join(prefix, gc.Path())
+								effective, spec, routeACL = resolveHandler(method, gc, routePath)
+								if routeACL == nil {
+									appendRoute("DELETE", routePath, effective, spec, operation)
+								}
+							}
+							if routeACL != nil {
+								return nil, routeACL
 							}
 						}
 					}

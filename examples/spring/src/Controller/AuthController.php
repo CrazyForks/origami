@@ -3,12 +3,14 @@
 namespace Spring\Controller;
 
 use Net\Annotation\Controller;
+use Net\Annotation\Operation;
 use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
 use Net\Annotation\PostMapping;
 use Net\Annotation\Middleware;
 use Net\Http\Request;
 use Net\Http\Response;
+use Spring\DTO\Request\LoginRequest;
 use Spring\Service\AuthService;
 use Spring\Middleware\LogInterceptor;
 
@@ -21,16 +23,10 @@ class AuthController {
         private AuthService $authService,
     ) {}
 
+    #[Operation(summary: "用户登录", description: "用户登录并返回认证令牌", tags: ["auth"])]
     #[PostMapping(path: "/auth/login")]
-    public function login(Request $request, Response $response): void {
-        $body = $request->body();
-
-        if (!isset($body['username']) || !isset($body['password'])) {
-            $response->error('缺少用户名或密码', 400);
-            return;
-        }
-
-        $result = $this->authService->login($body['username'], $body['password']);
+    public function login(LoginRequest $request, Response $response): void {
+        $result = $this->authService->login($request->username, $request->password);
 
         if (!$result['success']) {
             $response->error($result['message'], 401);
@@ -43,6 +39,7 @@ class AuthController {
         ], '登录成功');
     }
 
+    #[Operation(summary: "用户注册", description: "用户注册并返回用户信息", tags: ["auth"])]
     #[PostMapping(path: "/auth/register")]
     public function register(Request $request, Response $response): void {
         $body = $request->body();
@@ -62,6 +59,7 @@ class AuthController {
         $response->success($result['user'], '注册成功', 201);
     }
 
+    #[Operation(summary: "获取用户信息", description: "获取当前登录用户信息", tags: ["user"])]
     #[GetMapping(path: "/auth/profile")]
     public function profile(Request $request, Response $response): void {
         $token = $request->header('Authorization', '');
@@ -81,8 +79,9 @@ class AuthController {
         $response->success($user);
     }
 
+    #[Operation(summary: "用户退出登录", description: "用户退出登录并返回成功信息", tags: ["auth"])]
     #[PostMapping(path: "/auth/logout")]
-    public function logout(Request $request, Response $response): void {
+    public function logout(Response $response): void {
         $response->success(null, '退出登录成功');
     }
 }

@@ -68,9 +68,6 @@ type VM struct {
 	// 调用深度追踪（用于检测无限递归）
 	callDepth int
 
-	// 注解 @Controller 注册的 HTTP 路由（flash 引导后写入此处）
-	httpRoutes []Route
-
 	// 预编译文件注册表
 	compiledFiles map[string]func() (data.GetValue, []data.Variable)
 }
