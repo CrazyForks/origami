@@ -26,7 +26,11 @@ func mountAnnotationRoutes(server *ServerClass, vm data.VM, ctx data.Context, la
 			reqProxy := data.NewProxyValue(request, ctx)
 			resProxy := data.NewProxyValue(response, ctx)
 
-			if _, acl := executeMiddlewareChain(vm, ctx, rt, reqProxy, resProxy); acl != nil {
+			ret, acl := executeMiddlewareChain(vm, ctx, rt, reqProxy, resProxy)
+			if acl != nil {
+				panic(acl)
+			}
+			if acl := writeHandlerReturnValue(resProxy, ret); acl != nil {
 				panic(acl)
 			}
 		})

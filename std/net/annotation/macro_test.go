@@ -129,6 +129,53 @@ func TestAnalyzeHandlerParamsScalarQueryBinding(t *testing.T) {
 	}
 }
 
+func TestAnalyzeHandlerParamsQueryValidationAnnotations(t *testing.T) {
+	p := parser.NewParser()
+	vm := runtime.NewVM(p).(*runtime.VM)
+	std.Load(vm)
+
+	src := `<?php
+namespace Test\Controller;
+use Validation\Annotation\NotBlank;
+use Validation\Annotation\Size;
+class HelloController {
+    public function hello(
+        #[NotBlank(message: "name required")]
+        #[Size(min: 1, max: 64)]
+        string $name
+    ): void {}
+}
+`
+	prog, acl := p.ParseString(src, "ctrl.php")
+	if acl != nil {
+		t.Fatalf("parse: %v", acl)
+	}
+	ctx := vm.CreateContext(nil)
+	if _, acl = prog.GetValue(ctx); acl != nil {
+		t.Fatalf("run: %v", acl)
+	}
+
+	cls, acl := vm.GetOrLoadClass("Test\\Controller\\HelloController")
+	if acl != nil {
+		t.Fatalf("class: %v", acl)
+	}
+	method, ok := cls.GetMethod("hello")
+	if !ok {
+		t.Fatal("method hello not found")
+	}
+
+	spec, acl := netannotation.AnalyzeHandlerParams(method, vm, "/hello")
+	if acl != nil {
+		t.Fatalf("unexpected acl: %v", acl)
+	}
+	if !spec.Params[0].Validate {
+		t.Fatal("expected Validate=true for query param with constraints")
+	}
+	if len(spec.Params[0].Constraints) != 2 {
+		t.Fatalf("expected 2 constraints, got %d", len(spec.Params[0].Constraints))
+	}
+}
+
 func TestValidationConstraintsDetection(t *testing.T) {
 	p := parser.NewParser()
 	vm := runtime.NewVM(p).(*runtime.VM)

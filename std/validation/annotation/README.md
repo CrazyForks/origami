@@ -2,8 +2,8 @@
 
 `Validation\Annotation` 提供请求 DTO / 参数上的**校验约束元数据**，设计参考 Jakarta Bean Validation（`@NotBlank`、`@Email`、`@Min` 等）。
 
-> **当前范围**：仅实现注解定义与注册（特性注解），供解析、反射、`gen-std` 伪代码生成和编译模式使用。  
-> **尚未实现**：运行时校验器、HTTP 自动绑定与 422 响应。约束规则需在后续的 `Validator` / 绑定器中读取这些注解后执行。
+> **当前范围**：注解定义与注册、运行时校验器 `Validation\Validator`、HTTP DTO 绑定后自动校验（422）。  
+> **绑定层**：`Request::bind()` 负责 query/form/body → DTO 类型转换；**约束层**：属性上的 `#[Size]`、`#[Pattern]` 等由校验器执行。
 
 ## 注册方式
 
@@ -139,12 +139,17 @@ annotation/
 - 运行时可通过 `ConstraintClass.Spec()`、`State()` 读取约束名与构造参数。
 - `gen-std` 根据命名空间含 `annotation` 自动生成 `#[\Attribute(...)]` 伪代码，无需在 `generate.go` 中硬编码类名。
 
-## 后续扩展（运行时，未实现）
+## 运行时校验
 
-预期分层：
+### Validation\Validator
 
-1. **绑定器** — 读取 `#[Name]` 与属性类型，将 request body / query / form 填入 DTO。
-2. **校验器** — 遍历属性上的 `ConstraintClass`，按 `Spec().FullName` 分发规则，收集 `field` + `message` 违规列表。
-3. **HTTP 集成** — 控制器 DTO 参数或 `Request::bind()` 在绑定后调用校验器；失败返回 422。
+```php
+$violations = \Validation\Validator::validate($dto);
+// [ ['field' => 'username', 'message' => '...'], ... ]
+```
 
-添加新约束时，只需更新 `specs.go`，校验器侧增加对应 `case` 即可。
+### HTTP 集成
+
+控制器 DTO 参数在 `Request::bind()` 之后自动校验（扫描阶段若检测到约束注解则 `Validate=true`）。失败时返回 **422**，body 含 `violations` 数组。
+
+## 后续扩展

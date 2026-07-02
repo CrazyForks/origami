@@ -100,10 +100,15 @@ func executeMiddlewareChain(vm data.VM, ctx data.Context, rt netdata.Route, requ
 			return buildNext()
 		}
 
+		var lastNextReturn data.GetValue
 		// 创建 $next 回调，指向链中的下一个节点
 		nextFunc := data.NewFuncValue(NextFunc{
 			name: "next",
-			fn:   func(request data.Value, response data.Value) (data.GetValue, data.Control) { return buildNext() },
+			fn: func(request data.Value, response data.Value) (data.GetValue, data.Control) {
+				ret, acl := buildNext()
+				lastNextReturn = ret
+				return ret, acl
+			},
 			variable: []data.Variable{
 				node.NewVariable(nil, "request", 0, nil),
 				node.NewVariable(nil, "response", 1, nil),
@@ -116,10 +121,24 @@ func executeMiddlewareChain(vm data.VM, ctx data.Context, rt netdata.Route, requ
 		fnCtx.SetVariableValue(vars[1], response)
 		fnCtx.SetVariableValue(vars[2], nextFunc)
 
-		return method.Call(fnCtx)
+		ret, acl := method.Call(fnCtx)
+		if isEmptyHandlerReturn(ret) && !isEmptyHandlerReturn(lastNextReturn) {
+			ret = lastNextReturn
+		}
+		return ret, acl
 	}
 
 	return buildNext()
+}
+
+func isEmptyHandlerReturn(v data.GetValue) bool {
+	if v == nil {
+		return true
+	}
+	if _, ok := v.(*data.NullValue); ok {
+		return true
+	}
+	return false
 }
 
 // executeControllerMethod 执行控制器方法

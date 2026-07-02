@@ -3,11 +3,13 @@ package http
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/php-any/origami/data"
 	netdata "github.com/php-any/origami/std/net/data"
+	"github.com/php-any/origami/std/validation"
 	"github.com/php-any/origami/utils"
 )
 
@@ -35,9 +37,12 @@ func resolveHandlerArgs(
 		case netdata.SourceResponse:
 			args[binding.Index] = resProxy
 		case netdata.SourceDTO:
-			dto, acl := bindDTO(vm, ctx, reqProxy, binding.TypeFQN)
+			dto, acl := bindDTO(vm, ctx, reqProxy, resProxy, binding)
 			if acl != nil {
 				return nil, acl
+			}
+			if dto == nil {
+				return nil, nil
 			}
 			args[binding.Index] = dto
 		case netdata.SourcePath:
@@ -45,10 +50,16 @@ func resolveHandlerArgs(
 			if acl != nil {
 				return nil, acl
 			}
+			if done, acl := validateScalarBinding(resProxy, binding, val); done {
+				return nil, acl
+			}
 			args[binding.Index] = val
 		case netdata.SourceQuery:
 			val, acl := resolveQueryParam(reqProxy, binding)
 			if acl != nil {
+				return nil, acl
+			}
+			if done, acl := validateScalarBinding(resProxy, binding, val); done {
 				return nil, acl
 			}
 			args[binding.Index] = val
@@ -59,7 +70,7 @@ func resolveHandlerArgs(
 	return args, nil
 }
 
-func bindDTO(vm data.VM, ctx data.Context, reqProxy data.Value, typeFQN string) (data.Value, data.Control) {
+func bindDTO(vm data.VM, ctx data.Context, reqProxy, resProxy data.Value, binding netdata.ParamBinding) (data.Value, data.Control) {
 	reqCV, ok := reqProxy.(*data.ProxyValue)
 	if !ok {
 		return nil, utils.NewThrow(errors.New("DTO 绑定需要 Request 代理对象"))
@@ -74,7 +85,7 @@ func bindDTO(vm data.VM, ctx data.Context, reqProxy data.Value, typeFQN string) 
 	}
 
 	bindCtx := reqCV.CreateContext(vars)
-	className := strings.TrimPrefix(typeFQN, "\\")
+	className := strings.TrimPrefix(binding.TypeFQN, "\\")
 	bindCtx.SetVariableValue(vars[0], data.NewStringValue(className))
 	dto, acl := bindMethod.Call(bindCtx)
 	if acl != nil {
@@ -83,10 +94,51 @@ func bindDTO(vm data.VM, ctx data.Context, reqProxy data.Value, typeFQN string) 
 	if dto == nil {
 		return data.NewObjectValue(), nil
 	}
-	if val, ok := dto.(data.Value); ok {
-		return val, nil
+	val, ok := dto.(data.Value)
+	if !ok {
+		val = data.NewAnyValue(dto)
 	}
-	return data.NewAnyValue(dto), nil
+
+	if binding.Validate {
+		if cv, ok := val.(*data.ClassValue); ok {
+			if violations := validation.ValidateObject(cv); len(violations) > 0 {
+				if acl := writeValidationError(resProxy, violations); acl != nil {
+					return nil, acl
+				}
+				return nil, nil
+			}
+		}
+	}
+	return val, nil
+}
+
+func writeValidationError(resProxy data.Value, violations []validation.Violation) data.Control {
+	resCV, ok := resProxy.(*data.ProxyValue)
+	if !ok {
+		return utils.NewThrow(errors.New("校验失败响应需要 Response 代理对象"))
+	}
+	errMethod, has := resCV.GetMethod("error")
+	if !has {
+		return utils.NewThrow(errors.New("Response 缺少 error 方法"))
+	}
+	vars := errMethod.GetVariables()
+	errCtx := resCV.CreateContext(vars)
+	errCtx.SetVariableValue(vars[0], data.NewStringValue("validation failed"))
+	if len(vars) > 1 {
+		errCtx.SetVariableValue(vars[1], data.NewIntValue(http.StatusUnprocessableEntity))
+	}
+	if len(vars) > 2 {
+		items := make([]data.Value, 0, len(violations))
+		for _, v := range violations {
+			item := data.NewObjectValue()
+			item.SetProperty("field", data.NewStringValue(v.Field))
+			item.SetProperty("message", data.NewStringValue(v.Message))
+			items = append(items, item)
+		}
+		errCtx.SetVariableValue(vars[2], data.NewArrayValue(items))
+	}
+	_, acl := errMethod.Call(errCtx)
+	return acl
 }
 
 func resolvePathParam(reqProxy data.Value, binding netdata.ParamBinding) (data.Value, data.Control) {
@@ -119,7 +171,7 @@ func resolvePathParam(reqProxy data.Value, binding netdata.ParamBinding) (data.V
 	if rawStr == "" && binding.Nullable {
 		return data.NewNullValue(), nil
 	}
-	return coerceScalar(rawStr, binding.TypeFQN, binding.Name, "路径")
+	return resolveScalarValue(rawStr, binding, "路径")
 }
 
 func resolveQueryParam(reqProxy data.Value, binding netdata.ParamBinding) (data.Value, data.Control) {
@@ -143,19 +195,56 @@ func resolveQueryParam(reqProxy data.Value, binding netdata.ParamBinding) (data.
 		return nil, acl
 	}
 
-	rawStr := ""
-	if raw != nil {
-		if sv, ok := raw.(data.AsString); ok {
-			rawStr = sv.AsString()
-		}
-	}
+	rawStr := inputRawString(raw)
 	if rawStr == "" && binding.Nullable {
 		return data.NewNullValue(), nil
 	}
+	return resolveScalarValue(rawStr, binding, "查询")
+}
+
+// resolveScalarValue 将路径/查询标量绑定为 Value；有约束时空值留给校验层处理。
+func resolveScalarValue(rawStr string, binding netdata.ParamBinding, kind string) (data.Value, data.Control) {
 	if rawStr == "" && binding.TypeFQN == "string" {
 		return data.NewStringValue(""), nil
 	}
-	return coerceScalar(rawStr, binding.TypeFQN, binding.Name, "查询")
+	if rawStr == "" && binding.TypeFQN != "string" && binding.Validate && len(binding.Constraints) > 0 {
+		return data.NewNullValue(), nil
+	}
+	return coerceScalar(rawStr, binding.TypeFQN, binding.Name, kind)
+}
+
+func inputRawString(raw data.GetValue) string {
+	if raw == nil {
+		return ""
+	}
+	if _, ok := raw.(*data.NullValue); ok {
+		return ""
+	}
+	if av, ok := raw.(*data.AnyValue); ok && av.Value == nil {
+		return ""
+	}
+	if sv, ok := raw.(data.AsString); ok {
+		return sv.AsString()
+	}
+	return ""
+}
+
+func validateScalarBinding(resProxy data.Value, binding netdata.ParamBinding, val data.Value) (bool, data.Control) {
+	if !binding.Validate || len(binding.Constraints) == 0 {
+		return false, nil
+	}
+	label := binding.Label
+	if label == "" {
+		label = binding.Name
+	}
+	violations := validation.ValidateConstraints(label, binding.Name, binding.Constraints, val)
+	if len(violations) == 0 {
+		return false, nil
+	}
+	if acl := writeValidationError(resProxy, violations); acl != nil {
+		return true, acl
+	}
+	return true, nil
 }
 
 func coerceScalar(raw, typeFQN, paramName, kind string) (data.Value, data.Control) {

@@ -27,7 +27,7 @@ class CorsMiddleware {
         $this->allowedHeaders = $allowedHeaders;
     }
 
-    public function handle(Request $request, Response $response, callable $next): void {
+    public function handle(Request $request, Response $response, callable $next) {
         $origin = $request->header('Origin', '*');
 
         if (in_array('*', $this->allowedOrigins) || in_array($origin, $this->allowedOrigins)) {
@@ -43,6 +43,6 @@ class CorsMiddleware {
             return;
         }
 
-        $next($request, $response);
+        return $next($request, $response);
     }
 }

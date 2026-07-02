@@ -15,15 +15,17 @@ use Net\Http\Response;
  */
 class LogInterceptor {
 
-    public function handle(Request $request, Response $response, callable $next): void {
+    public function handle(Request $request, Response $response, callable $next) {
         $method = $request->method();
         $path = $request->path();
 
         \Log::info("[LOG] >>> {$method} {$path}");
 
-        $next($request, $response);
+        $result = $next($request, $response);
 
         \Log::info("[LOG] <<< 响应完成");
         \Log::info("[LOG] === 请求处理结束");
+
+        return $result;
     }
 }

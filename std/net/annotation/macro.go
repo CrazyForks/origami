@@ -8,6 +8,7 @@ import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
 	netdata "github.com/php-any/origami/std/net/data"
+	"github.com/php-any/origami/std/validation"
 	"github.com/php-any/origami/utils"
 )
 
@@ -63,6 +64,7 @@ func analyzeParameter(
 	typeFQN, nullable := unwrapTypeFQN(p.Type)
 	binding := netdata.ParamBinding{
 		Name:     p.Name,
+		Label:    validation.AnnotationDisplayName(p.Annotations, p.Name),
 		TypeFQN:  typeFQN,
 		Index:    index,
 		Nullable: nullable,
@@ -82,6 +84,11 @@ func analyzeParameter(
 		binding.Source = netdata.SourceResponse
 	default:
 		if isScalarTypeFQN(typeFQN) {
+			constraints := validation.ConstraintAnnotations(p.Annotations)
+			if len(constraints) > 0 {
+				binding.Constraints = constraints
+				binding.Validate = true
+			}
 			if pathVars[p.Name] {
 				binding.Source = netdata.SourcePath
 				binding.PathKey = p.Name
