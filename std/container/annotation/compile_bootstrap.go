@@ -1,4 +1,4 @@
-package container
+package annotation
 
 import "github.com/php-any/origami/data"
 

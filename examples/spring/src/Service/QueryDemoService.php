@@ -2,7 +2,7 @@
 
 namespace Spring\Service;
 
-use Container\Singleton;
+use Container\Annotation\Singleton;
 use Database\DB;
 use Spring\Model\Entity\UserEntity;
 

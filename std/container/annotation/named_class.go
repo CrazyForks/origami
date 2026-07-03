@@ -1,11 +1,8 @@
-package container
+package annotation
 
 import (
-	"errors"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/utils"
 )
 
 func NewNamedClass() data.ClassStmt {
@@ -20,7 +17,7 @@ type NamedClass struct {
 func (c *NamedClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(&NamedClass{construct: &NamedConstructMethod{}}, ctx.CreateBaseContext()), nil
 }
-func (c *NamedClass) GetName() string    { return "Container\\Named" }
+func (c *NamedClass) GetName() string    { return "Container\\Annotation\\Named" }
 func (c *NamedClass) GetExtend() *string { return nil }
 func (c *NamedClass) GetImplements() []string {
 	return []string{node.TypeFeature, node.TypeTargetParameter}
@@ -55,20 +52,5 @@ func (m *NamedConstructMethod) GetVariables() []data.Variable {
 }
 func (m *NamedConstructMethod) GetReturnType() data.Types { return nil }
 func (m *NamedConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	name, acl := annotationStringArg(ctx, 0)
-	if acl != nil {
-		return nil, acl
-	}
-	if name == "" {
-		return nil, utils.NewThrow(errors.New("Container\\Named 缺少 name 参数"))
-	}
-	param, className, acl := annotationTargetParameter(ctx)
-	if acl != nil {
-		return nil, acl
-	}
-	if className == "" {
-		return nil, utils.NewThrow(errors.New("Container\\Named 缺少所属类信息"))
-	}
-	metadataMarkConstructorInject(className, param.Index, param.Name, name, false)
-	return nil, nil
+	return nil, NamedParameterAnnotation(ctx)
 }

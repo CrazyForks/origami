@@ -6,7 +6,7 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/std/container"
+	containerannotation "github.com/php-any/origami/std/container/annotation"
 	dbannotation "github.com/php-any/origami/std/database/annotation"
 	"github.com/php-any/origami/std/net/annotation"
 	valannotation "github.com/php-any/origami/std/validation/annotation"
@@ -416,15 +416,15 @@ func (g *Generator) emitClassAnnotation(cv *data.ClassValue) error {
 	case *dbannotation.TableClass:
 		g.needDatabaseAnnotationImport()
 		g.printf("dbannotation.CompiledTableValue(%q)", c.Name())
-	case *container.SingletonAnnotationClass:
-		g.needContainerImport()
-		g.printf("container.CompiledSingletonValue()")
-	case *container.ScopedAnnotationClass:
-		g.needContainerImport()
-		g.printf("container.CompiledScopedValue()")
-	case *container.ComponentClass:
-		g.needContainerImport()
-		g.printf("container.CompiledComponentValue()")
+	case *containerannotation.SingletonAnnotationClass:
+		g.needContainerAnnotationImport()
+		g.printf("containerannotation.CompiledSingletonValue()")
+	case *containerannotation.ScopedAnnotationClass:
+		g.needContainerAnnotationImport()
+		g.printf("containerannotation.CompiledScopedValue()")
+	case *containerannotation.ComponentClass:
+		g.needContainerAnnotationImport()
+		g.printf("containerannotation.CompiledComponentValue()")
 	case *annotation.ApplicationClass:
 		g.needAnnotationImport()
 		g.printf("annotation.CompiledApplicationValue()")

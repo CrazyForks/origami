@@ -2,7 +2,7 @@
 
 namespace Spring\Service;
 
-use Container\Singleton;
+use Container\Annotation\Singleton;
 use Database\DB;
 use Spring\Model\Entity\UserEntity;
 
@@ -10,7 +10,7 @@ use Spring\Model\Entity\UserEntity;
 class UserService {
 
     private function db(): DB {
-        return DB<UserEntity>();
+        return DB::model(UserEntity::class);
     }
 
     public function findAll(): array {

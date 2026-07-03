@@ -4,22 +4,22 @@ namespace tests\php\container_fixtures;
 
 interface Phase2Anno_LoggerInterface {}
 
-#[\Container\Bind(abstract: Phase2Anno_LoggerInterface::class)]
+#[\Container\Annotation\Bind(abstract: Phase2Anno_LoggerInterface::class)]
 class Phase2Anno_FileLogger implements Phase2Anno_LoggerInterface {
     public string $channel = 'file';
 }
 
-#[\Container\Singleton]
+#[\Container\Annotation\Singleton]
 class Phase2Anno_Mailer {
     public string $tag = 'mailer';
 }
 
-#[\Container\Component(name: 'phase2.transient')]
+#[\Container\Annotation\Component(name: 'phase2.transient')]
 class Phase2Anno_TransientSvc {
     public string $tag = 'transient';
 }
 
-#[\Container\Singleton]
+#[\Container\Annotation\Singleton]
 class Phase2Anno_Config {
     private static int $seq = 0;
     public int $id;

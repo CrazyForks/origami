@@ -61,7 +61,7 @@ func annotationTargetParameter(ctx data.Context) (*node.Parameter, string, data.
 	case *node.PromotedParameter:
 		return t.Parameter, "", nil
 	case *node.ClassProperty:
-		return nil, "", utils.NewThrow(errors.New("Container\\Inject 只能用于构造器参数"))
+		return nil, "", utils.NewThrow(errors.New("Container\\Annotation\\Inject 只能用于构造器参数"))
 	default:
 		return nil, "", utils.NewThrow(errors.New("注解目标类型不支持"))
 	}
@@ -91,7 +91,7 @@ func scanDirectory(vm data.VM, dir string) data.Control {
 	return nil
 }
 
-func registerClassAnnotation(ctx data.Context, lifetime Lifetime) data.Control {
+func RegisterClassAnnotation(ctx data.Context, lifetime Lifetime) data.Control {
 	alias, _ := annotationStringArg(ctx, 0)
 	cls, acl := annotationTargetClass(ctx)
 	if acl != nil {

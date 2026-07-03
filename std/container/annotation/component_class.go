@@ -1,4 +1,4 @@
-package container
+package annotation
 
 import (
 	"github.com/php-any/origami/data"
@@ -17,7 +17,7 @@ type ComponentClass struct {
 func (c *ComponentClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(&ComponentClass{construct: &ComponentConstructMethod{}}, ctx.CreateBaseContext()), nil
 }
-func (c *ComponentClass) GetName() string    { return "Container\\Component" }
+func (c *ComponentClass) GetName() string    { return "Container\\Annotation\\Component" }
 func (c *ComponentClass) GetExtend() *string { return nil }
 func (c *ComponentClass) GetImplements() []string {
 	return []string{node.TypeFeature, node.TypeTargetClass}
@@ -52,7 +52,7 @@ func (m *ComponentConstructMethod) GetVariables() []data.Variable {
 }
 func (m *ComponentConstructMethod) GetReturnType() data.Types { return nil }
 func (m *ComponentConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return nil, registerClassAnnotation(ctx, LifetimeTransient)
+	return nil, RegisterClassLifetime(ctx, lifetimeTransient)
 }
 
 func NewSingletonAnnotationClass() data.ClassStmt {
@@ -67,7 +67,7 @@ type SingletonAnnotationClass struct {
 func (c *SingletonAnnotationClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(&SingletonAnnotationClass{construct: &SingletonAnnotationConstructMethod{}}, ctx.CreateBaseContext()), nil
 }
-func (c *SingletonAnnotationClass) GetName() string    { return "Container\\Singleton" }
+func (c *SingletonAnnotationClass) GetName() string    { return "Container\\Annotation\\Singleton" }
 func (c *SingletonAnnotationClass) GetExtend() *string { return nil }
 func (c *SingletonAnnotationClass) GetImplements() []string {
 	return []string{node.TypeFeature, node.TypeTargetClass}
@@ -102,7 +102,7 @@ func (m *SingletonAnnotationConstructMethod) GetVariables() []data.Variable {
 }
 func (m *SingletonAnnotationConstructMethod) GetReturnType() data.Types { return nil }
 func (m *SingletonAnnotationConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return nil, registerClassAnnotation(ctx, LifetimeSingleton)
+	return nil, RegisterClassLifetime(ctx, lifetimeSingleton)
 }
 
 func NewScopedAnnotationClass() data.ClassStmt {
@@ -117,7 +117,7 @@ type ScopedAnnotationClass struct {
 func (c *ScopedAnnotationClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(&ScopedAnnotationClass{construct: &ScopedAnnotationConstructMethod{}}, ctx.CreateBaseContext()), nil
 }
-func (c *ScopedAnnotationClass) GetName() string    { return "Container\\Scoped" }
+func (c *ScopedAnnotationClass) GetName() string    { return "Container\\Annotation\\Scoped" }
 func (c *ScopedAnnotationClass) GetExtend() *string { return nil }
 func (c *ScopedAnnotationClass) GetImplements() []string {
 	return []string{node.TypeFeature, node.TypeTargetClass}
@@ -152,5 +152,5 @@ func (m *ScopedAnnotationConstructMethod) GetVariables() []data.Variable {
 }
 func (m *ScopedAnnotationConstructMethod) GetReturnType() data.Types { return nil }
 func (m *ScopedAnnotationConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	return nil, registerClassAnnotation(ctx, LifetimeScoped)
+	return nil, RegisterClassLifetime(ctx, lifetimeScoped)
 }
