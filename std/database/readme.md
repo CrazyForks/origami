@@ -70,6 +70,14 @@ DB::insert($user, "master");
 
 底层连接封装（`database\sql`）仍使用 Go `database/sql` 命名：`Query` / `Exec`。
 
+## Schema Migration
+
+根据 Entity 注解自动同步数据库 Schema，详见 [`migration/readme.md`](migration/readme.md)。
+
+```php
+\Database\migrate($db, __DIR__ . "/Model/Entity");
+```
+
 ## 自动表名功能
 
 数据库模块支持通过 `@Table` 注解自动获取表名，无需显式调用 `table()` 方法：

@@ -1,15 +1,12 @@
 <?php
 
-namespace Spring\Model\Entity;
+namespace App\Model\Entity;
 
 use Database\Annotation\Column;
 use Database\Annotation\GeneratedValue;
 use Database\Annotation\Id;
 use Database\Annotation\Table;
 
-/**
- * 用户实体，映射 users 表。
- */
 #[Table("users")]
 class UserEntity {
     #[Id]
@@ -22,10 +19,21 @@ class UserEntity {
 
     #[Column("email", nullable: false, length: 100)]
     public string $email;
+}
 
-    #[Column("age", nullable: false)]
-    public int $age;
+#[Table("posts")]
+class PostEntity {
+    #[Id]
+    #[GeneratedValue("AUTO")]
+    #[Column("id", nullable: false)]
+    public int $id;
 
-    #[Column("created_at", nullable: true)]
-    public ?string $created_at;
+    #[Column("user_id", nullable: false)]
+    public int $user_id;
+
+    #[Column("title", nullable: false, length: 200)]
+    public string $title;
+
+    #[Column("content", nullable: true)]
+    public ?string $content;
 }

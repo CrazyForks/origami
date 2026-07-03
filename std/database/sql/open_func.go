@@ -41,14 +41,14 @@ func (h *OpenFunction) GetModifier() data.Modifier { return data.ModifierPublic 
 func (h *OpenFunction) GetIsStatic() bool          { return true }
 func (h *OpenFunction) GetParams() []data.GetValue {
 	return []data.GetValue{
-		node.NewParameter(nil, "driverName", 0, nil, nil),
-		node.NewParameter(nil, "dataSourceName", 1, nil, nil),
+		node.NewParameter(nil, "driverName", 0, nil, data.NewBaseType("string")),
+		node.NewParameter(nil, "dataSourceName", 1, nil, data.NewBaseType("string")),
 	}
 }
 func (h *OpenFunction) GetVariables() []data.Variable {
 	return []data.Variable{
-		node.NewVariable(nil, "driverName", 0, nil),
-		node.NewVariable(nil, "dataSourceName", 1, nil),
+		node.NewVariable(nil, "driverName", 0, data.NewBaseType("string")),
+		node.NewVariable(nil, "dataSourceName", 1, data.NewBaseType("string")),
 	}
 }
-func (h *OpenFunction) GetReturnType() data.Types { return data.NewBaseType("void") }
+func (h *OpenFunction) GetReturnType() data.Types { return data.Class{Name: "Database\\Sql\\DB"} }

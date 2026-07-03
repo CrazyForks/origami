@@ -9,6 +9,7 @@ use Net\Annotation\PostMapping;
 use Net\Annotation\Middleware;
 use Net\Http\Response;
 use Spring\DTO\Request\CreateUserRequest;
+use Spring\Service\QueryDemoService;
 use Spring\Service\UserService;
 use Spring\Middleware\AuthInterceptor;
 use Spring\Middleware\LogInterceptor;
@@ -25,9 +26,7 @@ class UserController {
     #[GetMapping(path: "/users")]
     public function users(Response $response): void {
         $users = $this->userService->findAll();
-        $userArray = array_map(function($user) {
-            return $user->toArray();
-        }, $users);
+        $userArray = QueryDemoService::entitiesToArray($users);
         $response->success([
             'list' => $userArray,
             'total' => count($userArray),
@@ -41,7 +40,7 @@ class UserController {
             $response->error('用户不存在', 404);
             return;
         }
-        $response->success($user->toArray());
+        $response->success(QueryDemoService::entityToArray($user));
     }
 
     #[PostMapping(path: "/users")]
@@ -51,6 +50,6 @@ class UserController {
             'email' => $request->email,
             'age' => $request->age,
         ]);
-        $response->success($user->toArray(), 'created', 201);
+        $response->success(QueryDemoService::entityToArray($user), 'created', 201);
     }
 }
