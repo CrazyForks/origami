@@ -49,10 +49,10 @@ $c->singleton('config', function (\Container\Container $container) {
 
 | 注解 | 目标 | 作用 |
 |---|---|---|
-| `Container\Component` | 类 | 注册 Transient |
-| `Container\Singleton` | 类 | 注册 Singleton |
-| `Container\Scoped` | 类 | 注册 Scoped |
-| `Container\Bind` | 类 | 接口 → 实现映射 |
+| `Container\Annotation\Component` | 类 | 注册 Transient |
+| `Container\Annotation\Singleton` | 类 | 注册 Singleton |
+| `Container\Annotation\Scoped` | 类 | 注册 Scoped |
+| `Container\Annotation\Bind` | 类 | 接口 → 实现映射 |
 
 ## ServiceProvider
 

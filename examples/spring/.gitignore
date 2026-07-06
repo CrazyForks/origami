@@ -2,3 +2,5 @@
 *.log
 dist
 app
+storage/uploads/*
+!storage/uploads/.gitkeep

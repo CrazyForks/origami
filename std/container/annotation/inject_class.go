@@ -1,11 +1,8 @@
-package container
+package annotation
 
 import (
-	"errors"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/utils"
 )
 
 func NewInjectClass() data.ClassStmt {
@@ -20,7 +17,7 @@ type InjectClass struct {
 func (c *InjectClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(&InjectClass{construct: &InjectConstructMethod{}}, ctx.CreateBaseContext()), nil
 }
-func (c *InjectClass) GetName() string    { return "Container\\Inject" }
+func (c *InjectClass) GetName() string    { return "Container\\Annotation\\Inject" }
 func (c *InjectClass) GetExtend() *string { return nil }
 func (c *InjectClass) GetImplements() []string {
 	return []string{node.TypeMacro, node.TypeTargetParameter}
@@ -55,14 +52,5 @@ func (m *InjectConstructMethod) GetVariables() []data.Variable {
 }
 func (m *InjectConstructMethod) GetReturnType() data.Types { return nil }
 func (m *InjectConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	service, _ := annotationStringArg(ctx, 0)
-	param, className, acl := annotationTargetParameter(ctx)
-	if acl != nil {
-		return nil, acl
-	}
-	if className == "" {
-		return nil, utils.NewThrow(errors.New("Container\\Inject 缺少所属类信息"))
-	}
-	metadataMarkConstructorInject(className, param.Index, param.Name, service, true)
-	return nil, nil
+	return nil, InjectParameterAnnotation(ctx)
 }

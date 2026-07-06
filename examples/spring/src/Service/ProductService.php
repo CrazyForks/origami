@@ -2,7 +2,7 @@
 
 namespace Spring\Service;
 
-use Container\Singleton;
+use Container\Annotation\Singleton;
 use Database\DB;
 use Spring\Model\Entity\ProductEntity;
 
@@ -10,7 +10,7 @@ use Spring\Model\Entity\ProductEntity;
 class ProductService {
 
     private function db(): DB {
-        return DB<ProductEntity>();
+        return DB::model(ProductEntity::class);
     }
 
     public function findAll(): array {
@@ -23,7 +23,7 @@ class ProductService {
         if (!$entity) {
             return null;
         }
-        return $entity->toArray();
+        return QueryDemoService::entityToArray($entity);
     }
 
     public function create(array $data): array {
@@ -36,7 +36,7 @@ class ProductService {
         $result = DB::insert($entity);
         $entity->id = $result->insertId;
 
-        return $entity->toArray();
+        return QueryDemoService::entityToArray($entity);
     }
 
     public function update(int $id, array $data): ?array {

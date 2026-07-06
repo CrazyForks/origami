@@ -223,6 +223,14 @@ type Parameter struct {
 	Index        int    // 变量在作用域中的索引
 	Type         data.Types
 	DefaultValue data.GetValue // 默认值
+	Annotations  []*data.ClassValue
+}
+
+func (p *Parameter) AddAnnotations(a *data.ClassValue) {
+	if p.Annotations == nil {
+		p.Annotations = []*data.ClassValue{}
+	}
+	p.Annotations = append(p.Annotations, a)
 }
 
 func (p *Parameter) GetDefaultValue() data.GetValue {

@@ -6,8 +6,9 @@ use Net\Annotation\Controller;
 use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
 use Net\Annotation\Middleware;
-use Net\Http\Request;
 use Net\Http\Response;
+use Spring\DTO\Request\SearchUsersQuery;
+use Spring\DTO\Request\UserListQuery;
 use Spring\Middleware\LogInterceptor;
 use Spring\Service\QueryDemoService;
 
@@ -22,31 +23,18 @@ class QueryController {
 
     /**
      * 单表查询：条件 + 排序 + 分页
-     * GET /api/queries/users?min_age=25&limit=5
+     * GET /api/queries/simple/users?min_age=25&limit=5
      */
     #[GetMapping(path: "/simple/users")]
-    public function singleTableUsers(Request $request, Response $response): void {
-        $minAge = 0;
-        $limit = 10;
-        $minAgeInput = $request->input('min_age');
-        $limitInput = $request->input('limit');
-        if ($minAgeInput !== null) {
-            $minAge = (int)$minAgeInput;
-        }
-        if ($limitInput !== null) {
-            $limit = (int)$limitInput;
-        }
-        if ($limit <= 0) {
-            $limit = 10;
-        }
-
-        $rows = $this->queryService->singleTableQuery($minAge, $limit);
+    public function singleTableUsers(UserListQuery $query, Response $response): void {
+        $limit = $query->limit <= 0 ? 10 : $query->limit;
+        $rows = $this->queryService->singleTableQuery($query->min_age, $limit);
         $data = QueryDemoService::rowsToArray($rows);
 
         $response->success([
             'rows' => $data,
             'total' => count($data),
-            'params' => ['min_age' => $minAge, 'limit' => $limit],
+            'params' => ['min_age' => $query->min_age, 'limit' => $limit],
         ], '单表查询：users WHERE age >= ? ORDER BY age DESC LIMIT ?');
     }
 
@@ -55,14 +43,14 @@ class QueryController {
      * GET /api/queries/users/search?keyword=张
      */
     #[GetMapping(path: "/users/search")]
-    public function searchUsers(Request $request, Response $response): void {
-        $keyword = $request->input('keyword') ?? '';
-        $rows = $this->queryService->searchUsers($keyword);
+    public function searchUsers(SearchUsersQuery $query, Response $response): void {
+        $rows = $this->queryService->searchUsers($query->keyword);
         $data = QueryDemoService::rowsToArray($rows);
 
         $response->success([
             'rows' => $data,
             'total' => count($data),
+            'keyword' => $query->keyword,
         ], '单表模糊查询：name/email LIKE');
     }
 
@@ -71,7 +59,7 @@ class QueryController {
      * GET /api/queries/products/stats
      */
     #[GetMapping(path: "/products/stats")]
-    public function productStats(Request $request, Response $response): void {
+    public function productStats(Response $response): void {
         $rows = $this->queryService->aggregateByCategory();
         $data = QueryDemoService::rowsToArray($rows);
 
@@ -86,7 +74,7 @@ class QueryController {
      * GET /api/queries/products/above-avg
      */
     #[GetMapping(path: "/products/above-avg")]
-    public function productsAboveAvg(Request $request, Response $response): void {
+    public function productsAboveAvg(Response $response): void {
         $rows = $this->queryService->productsAboveCategoryAvg();
         $data = QueryDemoService::rowsToArray($rows);
 
@@ -101,7 +89,7 @@ class QueryController {
      * GET /api/queries/orders/join-products
      */
     #[GetMapping(path: "/orders/join-products")]
-    public function joinOrderProducts(Request $request, Response $response): void {
+    public function joinOrderProducts(Response $response): void {
         $rows = $this->queryService->innerJoinOrderProducts();
         $data = QueryDemoService::rowsToArray($rows);
 
@@ -116,7 +104,7 @@ class QueryController {
      * GET /api/queries/users/join-orders
      */
     #[GetMapping(path: "/users/join-orders")]
-    public function joinUserOrders(Request $request, Response $response): void {
+    public function joinUserOrders(Response $response): void {
         $rows = $this->queryService->leftJoinUserOrders();
         $data = QueryDemoService::rowsToArray($rows);
 
@@ -131,7 +119,7 @@ class QueryController {
      * GET /api/queries/orders/details
      */
     #[GetMapping(path: "/orders/details")]
-    public function orderDetails(Request $request, Response $response): void {
+    public function orderDetails(Response $response): void {
         $rows = $this->queryService->orderDetails();
         $data = QueryDemoService::rowsToArray($rows);
 
@@ -146,7 +134,7 @@ class QueryController {
      * GET /api/queries/orders/completed-stats
      */
     #[GetMapping(path: "/orders/completed-stats")]
-    public function completedOrderStats(Request $request, Response $response): void {
+    public function completedOrderStats(Response $response): void {
         $rows = $this->queryService->completedOrderStats();
         $data = QueryDemoService::rowsToArray($rows);
 

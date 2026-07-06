@@ -211,7 +211,15 @@ func parseSingleParameter(parser *Parser) (data.GetValue, data.Property, data.Co
 		parser.scopeManager.CurrentScope().SetVariable(val.GetName(), node.NewVariableReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), val.GetType()))
 		return node.NewParameterReference(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType()), nil, nil
 	} else {
-		return node.NewParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType()), nil, nil
+		param := node.NewParameter(tracking.EndBefore(), val.GetName(), val.GetIndex(), defaultValue, val.GetType())
+		if len(paramAnnotations) > 0 {
+			if annTarget, ok := param.(node.AddAnnotations); ok {
+				if acl := ApplyAnnotations(parser, annTarget, paramAnnotations); acl != nil {
+					return nil, nil, acl
+				}
+			}
+		}
+		return param, nil, nil
 	}
 }
 

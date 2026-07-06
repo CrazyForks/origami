@@ -2,23 +2,30 @@
 
 namespace Spring\Model\Entity;
 
+use Database\Annotation\Column;
+use Database\Annotation\GeneratedValue;
+use Database\Annotation\Id;
 use Database\Annotation\Table;
 
+/**
+ * 用户实体，映射 users 表。
+ */
 #[Table("users")]
 class UserEntity {
+    #[Id]
+    #[GeneratedValue("AUTO")]
+    #[Column("id", nullable: false)]
     public int $id;
-    public string $name;
-    public string $email;
-    public int $age;
-    public ?string $created_at;
 
-    public function toArray(): array {
-        return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'email' => $this->email,
-            'age' => $this->age,
-            'created_at' => $this->created_at,
-        ];
-    }
+    #[Column("name", nullable: false, length: 100)]
+    public string $name;
+
+    #[Column("email", nullable: false, length: 100)]
+    public string $email;
+
+    #[Column("age", nullable: false)]
+    public int $age;
+
+    #[Column("created_at", nullable: true)]
+    public ?string $created_at;
 }

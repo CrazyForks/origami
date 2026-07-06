@@ -5,20 +5,25 @@ import (
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	containerannotation "github.com/php-any/origami/std/container/annotation"
 	"github.com/php-any/origami/std/net/annotation"
+	netdata "github.com/php-any/origami/std/net/data"
 )
 
 func Load(vm data.VM) {
 	annotation.OnApplicationScanStart = onApplicationScanStart
-	annotation.ControllerInstantiator = instantiateController
+	containerannotation.RegisterClassLifetime = func(ctx data.Context, lifetime int) data.Control {
+		return RegisterClassAnnotation(ctx, Lifetime(lifetime))
+	}
+	containerannotation.BindClassAnnotation = bindClassAnnotation
+	containerannotation.InjectParameterAnnotation = injectParameterAnnotation
+	containerannotation.NamedParameterAnnotation = namedParameterAnnotation
+	netdata.ControllerInstantiator = instantiateController
 
 	vm.AddClass(NewContainerClass())
 	vm.AddClass(NewServiceProviderClass())
 	vm.AddClass(NewScopeClass())
-	vm.AddClass(NewComponentClass())
-	vm.AddClass(NewSingletonAnnotationClass())
-	vm.AddClass(NewScopedAnnotationClass())
-	vm.AddClass(NewBindClass())
+	containerannotation.Load(vm)
 	vm.AddClass(NewCircularDependencyExceptionClass())
 }
 

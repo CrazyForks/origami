@@ -2,7 +2,7 @@
 
 namespace Spring\Service;
 
-use Container\Singleton;
+use Container\Annotation\Singleton;
 use Database\DB;
 use Spring\Model\Entity\UserEntity;
 
@@ -113,6 +113,14 @@ class QueryDemoService {
         ");
     }
 
+    public static function entityToArray(object $entity): array {
+        $item = [];
+        foreach ($entity as $key => $value) {
+            $item[$key] = $value;
+        }
+        return $item;
+    }
+
     public static function rowsToArray(array $rows): array {
         $result = [];
         foreach ($rows as $row) {
@@ -120,15 +128,11 @@ class QueryDemoService {
                 $result[] = $row;
                 continue;
             }
-            if (method_exists($row, 'toArray')) {
-                $result[] = $row->toArray();
+            if (is_object($row)) {
+                $result[] = self::entityToArray($row);
                 continue;
             }
-            $item = [];
-            foreach ($row as $key => $value) {
-                $item[$key] = $value;
-            }
-            $result[] = $item;
+            $result[] = $row;
         }
         return $result;
     }
@@ -136,11 +140,7 @@ class QueryDemoService {
     public static function entitiesToArray(array $entities): array {
         $result = [];
         foreach ($entities as $entity) {
-            if (method_exists($entity, 'toArray')) {
-                $result[] = $entity->toArray();
-            } else {
-                $result[] = $entity;
-            }
+            $result[] = is_object($entity) ? self::entityToArray($entity) : $entity;
         }
         return $result;
     }

@@ -13,6 +13,7 @@ import (
 	"github.com/php-any/origami/std/reflect"
 	"github.com/php-any/origami/std/signal"
 	"github.com/php-any/origami/std/system/os"
+	"github.com/php-any/origami/std/validation"
 )
 
 func Load(vm data.VM) {
@@ -45,4 +46,5 @@ func Load(vm data.VM) {
 	container.Load(vm)
 	protowire.Load(vm)
 	cli.Load(vm)
+	validation.Load(vm)
 }

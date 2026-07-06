@@ -13,4 +13,5 @@ func Load(vm data.VM) {
 	vm.AddClass(NewCookieClass())
 	vm.AddClass(NewResponseWriterClass())
 	vm.AddClass(NewRequestClass())
+	vm.AddClass(NewUploadedFileClass())
 }

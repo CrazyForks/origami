@@ -7,8 +7,9 @@ use Net\Annotation\Route;
 use Net\Annotation\GetMapping;
 use Net\Annotation\PostMapping;
 use Net\Annotation\Middleware;
-use Net\Http\Request;
 use Net\Http\Response;
+use Spring\DTO\Request\CreateUserRequest;
+use Spring\Service\QueryDemoService;
 use Spring\Service\UserService;
 use Spring\Middleware\AuthInterceptor;
 use Spring\Middleware\LogInterceptor;
@@ -23,11 +24,9 @@ class UserController {
     ) {}
 
     #[GetMapping(path: "/users")]
-    public function users(Request $request, Response $response): void {
+    public function users(Response $response): void {
         $users = $this->userService->findAll();
-        $userArray = array_map(function($user) {
-            return $user->toArray();
-        }, $users);
+        $userArray = QueryDemoService::entitiesToArray($users);
         $response->success([
             'list' => $userArray,
             'total' => count($userArray),
@@ -35,24 +34,22 @@ class UserController {
     }
 
     #[GetMapping(path: "/user/{id}")]
-    public function user(Request $request, Response $response): void {
-        $id = (int)$request->pathValue('id');
+    public function user(int $id, Response $response): void {
         $user = $this->userService->findById($id);
         if (!$user) {
             $response->error('用户不存在', 404);
             return;
         }
-        $response->success($user->toArray());
+        $response->success(QueryDemoService::entityToArray($user));
     }
 
     #[PostMapping(path: "/users")]
-    public function createUser(Request $request, Response $response): void {
-        $body = $request->body();
-        if (!isset($body['name']) || !isset($body['email'])) {
-            $response->error('缺少必要参数：name 和 email', 400);
-            return;
-        }
-        $user = $this->userService->create($body);
-        $response->success($user->toArray(), 'created', 201);
+    public function createUser(CreateUserRequest $request, Response $response): void {
+        $user = $this->userService->create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'age' => $request->age,
+        ]);
+        $response->success(QueryDemoService::entityToArray($user), 'created', 201);
     }
 }

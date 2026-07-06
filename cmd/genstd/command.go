@@ -14,6 +14,7 @@ func NewCommand() *cobra.Command {
 		Long: `扫描 Go 实现的标准库（函数与类），通过反射提取签名并生成 PHP 伪代码。
 
 生成的 .php 伪代码文件可用于 IDE 自动补全与类型提示，默认输出到当前目录的 .zy/std/ 目录。
+命名空间函数会生成独立文件（如 Database/Sql/open.php），同目录 functions.php 为索引入口。
 
 示例:
   zy gen-std

@@ -3,6 +3,7 @@ package annotation
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	netdata "github.com/php-any/origami/std/net/data"
 )
 
 // PostMapping 注解（标记 POST 路由）
@@ -23,7 +24,7 @@ func (p *PostMappingClass) GetValue(ctx data.Context) (data.GetValue, data.Contr
 func (p *PostMappingClass) GetName() string    { return "Net\\Annotation\\PostMapping" }
 func (p *PostMappingClass) GetExtend() *string { return nil }
 func (p *PostMappingClass) GetImplements() []string {
-	return []string{node.TypeFeature, node.TypeTargetMethod}
+	return []string{node.TypeFeature, node.TypeTargetMethod, node.TypeMacro}
 }
 func (p *PostMappingClass) GetProperty(_ string) (data.Property, bool) { return nil, false }
 func (p *PostMappingClass) GetPropertyList() []data.Property           { return []data.Property{} }
@@ -43,6 +44,11 @@ func (p *PostMappingClass) Path() string {
 		return p.source.path
 	}
 	return ""
+}
+
+// Expand 宏展开：分析目标方法的 HandlerSpec。
+func (p *PostMappingClass) Expand(target data.Method, ctx data.Context, routePath string) (data.Method, netdata.HandlerSpec, data.Control) {
+	return ExpandHTTPHandlerMethod(target, ctx, routePath)
 }
 
 type PostMapping struct {

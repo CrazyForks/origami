@@ -43,8 +43,12 @@ func (g *Generator) needDatabaseAnnotationImport() {
 	g.needImport("github.com/php-any/origami/std/database/annotation", "dbannotation")
 }
 
-func (g *Generator) needContainerImport() {
-	g.needImport("github.com/php-any/origami/std/container", "container")
+func (g *Generator) needValidationAnnotationImport() {
+	g.needImport("github.com/php-any/origami/std/validation/annotation", "valannotation")
+}
+
+func (g *Generator) needContainerAnnotationImport() {
+	g.needImport("github.com/php-any/origami/std/container/annotation", "containerannotation")
 }
 
 func modifierName(m data.Modifier) string {

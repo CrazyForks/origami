@@ -1,13 +1,15 @@
 package compile
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/std/container"
+	containerannotation "github.com/php-any/origami/std/container/annotation"
 	dbannotation "github.com/php-any/origami/std/database/annotation"
 	"github.com/php-any/origami/std/net/annotation"
+	valannotation "github.com/php-any/origami/std/validation/annotation"
 )
 
 type specialHandler func(g *Generator, v data.GetValue) error
@@ -403,27 +405,68 @@ func (g *Generator) emitClassAnnotation(cv *data.ClassValue) error {
 	case *annotation.DeleteMappingClass:
 		g.needAnnotationImport()
 		g.printf("annotation.CompiledDeleteMappingValue(%q)", c.Path())
+	case *annotation.OperationClass:
+		g.needAnnotationImport()
+		info := c.Info()
+		g.printf("annotation.CompiledOperationValue(%q, %q, %q, %#v, %v, %v)",
+			info.Summary, info.Description, info.OperationID, info.Tags, info.Deprecated, info.Hidden)
 	case *annotation.MiddlewareClass:
 		g.needAnnotationImport()
 		g.printf("annotation.CompiledMiddlewareValue(%q)", c.ClassName())
 	case *dbannotation.TableClass:
 		g.needDatabaseAnnotationImport()
 		g.printf("dbannotation.CompiledTableValue(%q)", c.Name())
-	case *container.SingletonAnnotationClass:
-		g.needContainerImport()
-		g.printf("container.CompiledSingletonValue()")
-	case *container.ScopedAnnotationClass:
-		g.needContainerImport()
-		g.printf("container.CompiledScopedValue()")
-	case *container.ComponentClass:
-		g.needContainerImport()
-		g.printf("container.CompiledComponentValue()")
+	case *containerannotation.SingletonAnnotationClass:
+		g.needContainerAnnotationImport()
+		g.printf("containerannotation.CompiledSingletonValue()")
+	case *containerannotation.ScopedAnnotationClass:
+		g.needContainerAnnotationImport()
+		g.printf("containerannotation.CompiledScopedValue()")
+	case *containerannotation.ComponentClass:
+		g.needContainerAnnotationImport()
+		g.printf("containerannotation.CompiledComponentValue()")
 	case *annotation.ApplicationClass:
 		g.needAnnotationImport()
 		g.printf("annotation.CompiledApplicationValue()")
+	case *valannotation.ConstraintClass:
+		g.needValidationAnnotationImport()
+		g.printf("valannotation.CompiledConstraintValue(%q, ", c.GetName())
+		if err := emitConstraintState(g, c.State()); err != nil {
+			return err
+		}
+		g.printf(")")
 	default:
 		return newEmitError(g.file, cv, "unsupported annotation type "+reflect.TypeOf(c).String())
 	}
+	return nil
+}
+
+func emitConstraintState(g *Generator, state map[string]data.GetValue) error {
+	g.printf("map[string]data.GetValue{")
+	first := true
+	for name, val := range state {
+		if val == nil {
+			continue
+		}
+		if !first {
+			g.printf(", ")
+		}
+		first = false
+		g.printf("%q: ", name)
+		switch v := val.(type) {
+		case *data.StringValue:
+			g.printf("data.NewStringValue(%q)", v.AsString())
+		case *data.IntValue:
+			g.printf("data.NewIntValue(%d)", v.Value)
+		case *data.FloatValue:
+			g.printf("data.NewFloatValue(%g)", v.Value)
+		case *data.BoolValue:
+			g.printf("data.NewBoolValue(%v)", v.Value)
+		default:
+			return fmt.Errorf("unsupported constraint state value type %T for key %q", val, name)
+		}
+	}
+	g.printf("}")
 	return nil
 }
 

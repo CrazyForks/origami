@@ -1,11 +1,9 @@
 package http
 
 import (
-	"net/http"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/runtime"
+	netdata "github.com/php-any/origami/std/net/data"
 	"github.com/php-any/origami/utils"
 )
 
@@ -50,56 +48,14 @@ func (f NextFunc) GetVariables() []data.Variable {
 	return f.variable
 }
 
-// DispatchHTTPRoutes 根据 VM 中已注册的注解路由分发当前请求。
-// 使用洋葱模型中间件：middleware.handle($request, $response, $next)
-func DispatchHTTPRoutes(vm data.VM, ctx data.Context) (data.GetValue, data.Control) {
-	routes := runtime.HTTPRoutes(vm)
-	if len(routes) == 0 {
-		return nil, utils.NewThrowf("未注册 HTTP 路由，请确认应用入口已加载且控制器带有 @Controller/@*Mapping 注解")
-	}
-
-	mux := http.NewServeMux()
-	var lastACL data.Control
-	for _, rt := range routes {
-		rt := rt
-		mux.HandleFunc(rt.Method+" "+rt.Path, func(w http.ResponseWriter, r *http.Request) {
-			rw, response := beginResponse(w, r)
-			defer rw.commitPending()
-			r, request := beginRequest(r)
-			defer detachRequestAttrs(r)
-
-			reqProxy := data.NewProxyValue(request, ctx)
-			resProxy := data.NewProxyValue(response, ctx)
-
-			// 使用洋葱模型执行中间件链 + 控制器
-			_, acl := executeMiddlewareChain(vm, ctx, rt, reqProxy, resProxy)
-			if acl != nil {
-				lastACL = acl
-			}
-		})
-	}
-
-	req, err := utils.ConvertFromIndex[*http.Request](ctx, 0)
-	if err != nil {
-		return nil, utils.NewThrow(err)
-	}
-	res, err := utils.ConvertFromIndex[http.ResponseWriter](ctx, 1)
-	if err != nil {
-		return nil, utils.NewThrow(err)
-	}
-
-	mux.ServeHTTP(res, req)
-	return nil, lastACL
-}
-
 // executeMiddlewareChain 使用洋葱模型执行中间件链和控制器
 // 链结构: middleware[0].handle → middleware[1].handle → ... → controller
-func executeMiddlewareChain(vm data.VM, ctx data.Context, rt runtime.Route, request data.Value, response data.Value) (data.GetValue, data.Control) {
+func executeMiddlewareChain(vm data.VM, ctx data.Context, rt netdata.Route, request data.Value, response data.Value) (data.GetValue, data.Control) {
 	middlewares := rt.Middlewares
 
 	// 如果没有中间件，直接执行控制器
 	if len(middlewares) == 0 {
-		return executeControllerMethod(rt, request, response, ctx)
+		return executeControllerMethod(vm, ctx, rt, request, response)
 	}
 
 	// 构建洋葱链，从内到外
@@ -109,7 +65,7 @@ func executeMiddlewareChain(vm data.VM, ctx data.Context, rt runtime.Route, requ
 	buildNext = func() (data.GetValue, data.Control) {
 		if chainIdx >= len(middlewares) {
 			// 链末端：执行控制器方法
-			return executeControllerMethod(rt, request, response, ctx)
+			return executeControllerMethod(vm, ctx, rt, request, response)
 		}
 
 		mw := middlewares[chainIdx]
@@ -144,10 +100,15 @@ func executeMiddlewareChain(vm data.VM, ctx data.Context, rt runtime.Route, requ
 			return buildNext()
 		}
 
+		var lastNextReturn data.GetValue
 		// 创建 $next 回调，指向链中的下一个节点
 		nextFunc := data.NewFuncValue(NextFunc{
 			name: "next",
-			fn:   func(request data.Value, response data.Value) (data.GetValue, data.Control) { return buildNext() },
+			fn: func(request data.Value, response data.Value) (data.GetValue, data.Control) {
+				ret, acl := buildNext()
+				lastNextReturn = ret
+				return ret, acl
+			},
 			variable: []data.Variable{
 				node.NewVariable(nil, "request", 0, nil),
 				node.NewVariable(nil, "response", 1, nil),
@@ -160,24 +121,41 @@ func executeMiddlewareChain(vm data.VM, ctx data.Context, rt runtime.Route, requ
 		fnCtx.SetVariableValue(vars[1], response)
 		fnCtx.SetVariableValue(vars[2], nextFunc)
 
-		return method.Call(fnCtx)
+		ret, acl := method.Call(fnCtx)
+		if isEmptyHandlerReturn(ret) && !isEmptyHandlerReturn(lastNextReturn) {
+			ret = lastNextReturn
+		}
+		return ret, acl
 	}
 
 	return buildNext()
 }
 
+func isEmptyHandlerReturn(v data.GetValue) bool {
+	if v == nil {
+		return true
+	}
+	if _, ok := v.(*data.NullValue); ok {
+		return true
+	}
+	return false
+}
+
 // executeControllerMethod 执行控制器方法
-func executeControllerMethod(rt runtime.Route, reqProxy data.Value, resProxy data.Value, ctx data.Context) (data.GetValue, data.Control) {
-	args := []data.Value{reqProxy, resProxy}
-	if len(rt.Target.GetVariables()) < len(args) {
-		args = args[:len(rt.Target.GetVariables())]
+func executeControllerMethod(vm data.VM, callCtx data.Context, rt netdata.Route, reqProxy data.Value, resProxy data.Value) (data.GetValue, data.Control) {
+	args, acl := resolveHandlerArgs(vm, callCtx, rt.HandlerSpec, reqProxy, resProxy)
+	if acl != nil {
+		return nil, acl
+	}
+	if args == nil {
+		return nil, nil
 	}
 
 	if rt.Receiver != nil {
 		return node.CallHTTPControllerMethod(rt.Receiver, rt.Target, args)
 	}
 
-	mute := ctx.CreateContext(rt.Target.GetVariables())
+	mute := callCtx.CreateContext(rt.Target.GetVariables())
 	for i, arg := range args {
 		if i < len(rt.Target.GetVariables()) {
 			mute.SetVariableValue(rt.Target.GetVariables()[i], arg)

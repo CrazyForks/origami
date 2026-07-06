@@ -3,6 +3,7 @@ package annotation
 import (
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
+	netdata "github.com/php-any/origami/std/net/data"
 )
 
 // DeleteMappingClass DeleteMapping注解类
@@ -27,7 +28,7 @@ func (d *DeleteMappingClass) GetExtend() *string {
 }
 
 func (d *DeleteMappingClass) GetImplements() []string {
-	return []string{node.TypeFeature, node.TypeTargetMethod}
+	return []string{node.TypeFeature, node.TypeTargetMethod, node.TypeMacro}
 }
 
 func (d *DeleteMappingClass) GetProperty(_ string) (data.Property, bool) {
@@ -58,6 +59,11 @@ func (d *DeleteMappingClass) Path() string {
 		return d.source.path
 	}
 	return ""
+}
+
+// Expand 宏展开：分析目标方法的 HandlerSpec。
+func (d *DeleteMappingClass) Expand(target data.Method, ctx data.Context, routePath string) (data.Method, netdata.HandlerSpec, data.Control) {
+	return ExpandHTTPHandlerMethod(target, ctx, routePath)
 }
 
 // DeleteMapping 映射实例

@@ -1,11 +1,8 @@
-package container
+package annotation
 
 import (
-	"errors"
-
 	"github.com/php-any/origami/data"
 	"github.com/php-any/origami/node"
-	"github.com/php-any/origami/utils"
 )
 
 func NewBindClass() data.ClassStmt {
@@ -20,7 +17,7 @@ type BindClass struct {
 func (c *BindClass) GetValue(ctx data.Context) (data.GetValue, data.Control) {
 	return data.NewClassValue(&BindClass{construct: &BindConstructMethod{}}, ctx.CreateBaseContext()), nil
 }
-func (c *BindClass) GetName() string    { return "Container\\Bind" }
+func (c *BindClass) GetName() string    { return "Container\\Annotation\\Bind" }
 func (c *BindClass) GetExtend() *string { return nil }
 func (c *BindClass) GetImplements() []string {
 	return []string{node.TypeFeature, node.TypeTargetClass}
@@ -55,19 +52,5 @@ func (m *BindConstructMethod) GetVariables() []data.Variable {
 }
 func (m *BindConstructMethod) GetReturnType() data.Types { return nil }
 func (m *BindConstructMethod) Call(ctx data.Context) (data.GetValue, data.Control) {
-	abstract, acl := annotationStringArg(ctx, 0)
-	if acl != nil {
-		return nil, acl
-	}
-	if abstract == "" {
-		return nil, utils.NewThrow(errors.New("Bind 缺少 abstract 参数"))
-	}
-	cls, acl := annotationTargetClass(ctx)
-	if acl != nil {
-		return nil, acl
-	}
-	if e := activeEngine(ctx); e != nil {
-		e.Bind(abstract, cls.Name)
-	}
-	return nil, nil
+	return nil, BindClassAnnotation(ctx)
 }

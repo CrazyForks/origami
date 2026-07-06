@@ -3,16 +3,18 @@
 namespace Spring\Bootstrap;
 
 use Database\DB;
-use Database\Sql\DB as SqlDB;
-use Database\Sql\open;
 use Spring\Model\Entity\OrderEntity;
 use Spring\Model\Entity\ProductEntity;
 use Spring\Model\Entity\UserEntity;
 
+use function Database\Sql\open;
+
 /**
- * SQLite 数据库初始化：建表、种子数据
+ * SQLite 数据库初始化：根据 Entity 注解同步 Schema、插入种子数据
  */
 class DatabaseBootstrap {
+
+    private const ENTITY_DIR = __DIR__ . '/../Model/Entity';
 
     public static function init(?string $dbPath = null): void {
         if ($dbPath === null) {
@@ -26,47 +28,22 @@ class DatabaseBootstrap {
         $db->ping();
         \Database\registerDefaultConnection($db);
 
-        self::createTables($db);
+        self::migrateSchema($db);
         self::seedData();
 
         \Log::info("数据库初始化完成");
     }
 
-    private static function createTables(SqlDB $db): void {
-        $db->exec("
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name VARCHAR(100) NOT NULL,
-                email VARCHAR(100) UNIQUE NOT NULL,
-                age INTEGER DEFAULT 0,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ");
+    private static function migrateSchema($db): void {
+        $result = \Database\migrate($db, self::ENTITY_DIR);
 
-        $db->exec("
-            CREATE TABLE IF NOT EXISTS products (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name VARCHAR(200) NOT NULL,
-                price REAL NOT NULL DEFAULT 0,
-                category VARCHAR(100) DEFAULT '未分类',
-                description TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ");
-
-        $db->exec("
-            CREATE TABLE IF NOT EXISTS orders (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                product_id INTEGER NOT NULL,
-                quantity INTEGER NOT NULL DEFAULT 1,
-                total_price REAL NOT NULL DEFAULT 0,
-                status VARCHAR(50) DEFAULT 'pending',
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id),
-                FOREIGN KEY (product_id) REFERENCES products (id)
-            )
-        ");
+        \Log::info("Schema 同步完成: 新建表 " . $result->createdCount . " 个, 新增列 " . $result->alteredCount . " 个");
+        foreach ($result->created as $item) {
+            \Log::info("  创建表: " . $item->table . " (" . $item->class . ")");
+        }
+        foreach ($result->altered as $item) {
+            \Log::info("  新增列: " . $item->table . "." . $item->column . " (" . $item->class . ")");
+        }
     }
 
     private static function seedData(): void {

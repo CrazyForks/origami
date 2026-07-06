@@ -2,27 +2,36 @@
 
 namespace Spring\Model\Entity;
 
+use Database\Annotation\Column;
+use Database\Annotation\GeneratedValue;
+use Database\Annotation\Id;
 use Database\Annotation\Table;
 
+/**
+ * 订单实体，映射 orders 表。
+ */
 #[Table("orders")]
 class OrderEntity {
+    #[Id]
+    #[GeneratedValue("AUTO")]
+    #[Column("id", nullable: false)]
     public int $id;
-    public int $user_id;
-    public int $product_id;
-    public int $quantity;
-    public float $total_price;
-    public string $status;
-    public ?string $created_at;
 
-    public function toArray(): array {
-        return [
-            'id' => $this->id,
-            'user_id' => $this->user_id,
-            'product_id' => $this->product_id,
-            'quantity' => $this->quantity,
-            'total_price' => $this->total_price,
-            'status' => $this->status,
-            'created_at' => $this->created_at,
-        ];
-    }
+    #[Column("user_id", nullable: false)]
+    public int $user_id;
+
+    #[Column("product_id", nullable: false)]
+    public int $product_id;
+
+    #[Column("quantity", nullable: false)]
+    public int $quantity;
+
+    #[Column("total_price", nullable: false)]
+    public float $total_price;
+
+    #[Column("status", nullable: false, length: 50)]
+    public string $status;
+
+    #[Column("created_at", nullable: true)]
+    public ?string $created_at;
 }
